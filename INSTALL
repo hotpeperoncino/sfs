@@ -1,0 +1,3 @@
+
+cd ext/buddy; autoreconf -i; configure --prefix= ; make; make install
+cd ext/; autoreconf -i; configure --prefix= ; make; make install

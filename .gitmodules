@@ -1,0 +1,6 @@
+[submodule "ext/gperftools"]
+	path = ext/gperftools
+	url = https://github.com/gperftools/gperftools.git
+[submodule "ext/buddy"]
+	path = ext/buddy
+	url = https://github.com/utwente-fmt/buddy.git
