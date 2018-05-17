@@ -1,0 +1,68 @@
+This is based on sfs.tar.gz downloaded from
+http://www.cs.ucsb.edu/~benh/research/downloads.html
+
+https://www.cs.ucsb.edu/~benh/research/papers/hardekopf11flow.pdf
+
+Staged Flow-Sensitive Pointer Analysis as described by Hardekopf and Lin.
+Semi Spare analysis by Hardekopf and Lin.
+
+----------
+
+This is an 'as-is' implementation of the Staged Flow-Sensitive Pointer
+Analysis as described by Hardekopf and Lin, "Flow-Sensitive Pointer
+Analysis for Millions of Lines of Code", CGO 2011, presented without
+warranty, guarantees, or promises of support. Use at your own risk. To
+set up the analysis, use the same methods for this implementation as
+described for the semi-sparse analysis implementation (available from
+the same website as this implementation).
+
+This package contains an implementation of Andersen-style pointer
+analysis used for the AUX stage (in anders/ and anders-aa/) and of the
+staged flow-sensitive analysis itself (in sfs-aa/). Presented below is
+a copy of the README for the semi-sparse analysis, which applies for
+this implementation as well:
+
+----------
+
+This implementation was created for an early (pre-release) version of 
+LLVM 2.5. For best results, you should compile the source code using the 
+my-llvm-gcc script that's part of the inclusion-based pointer analysis 
+package for LLVM linked on the same webpage as this file. This script is 
+a drop-in replacement for gcc in the build process and creates a single, 
+whole-program bitcode file.
+
+That file should then be passed through LLVM's own optimization passes 
+in the order specified below (this is important; some passes destroy the 
+invariants guaranteed by earlier passes, such as mergereturn's invariant 
+that every function has a single return statement):
+
+-internalize
+-mem2reg
+-indmemrem
+-raiseallocs
+-predsimplify
+-mergereturn
+-simplify-libcalls
+-loopsimplify
+-scalarrepl
+-licm
+-instcombine
+-condprop
+-constprop
+-sccp
+-gvn
+-die
+-adce
+-dse
+-constmerge
+-globaldce
+-globalopt
+-tailcallelim
+-ipconstprop
+-ipsccp
+-deadargelim
+-loop-deletion
+-simplifycfg 
+-mergereturn
+
+Good luck!
