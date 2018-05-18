@@ -1,3 +1,9 @@
+Don't access to Mr. Hardekopf. This project is independent of the origin.
+
+----------
+The intention and goal is to achieve porting sfs to latest llvm and fix bugs then measure 
+the performace.
+
 This is based on sfs.tar.gz downloaded from
 http://www.cs.ucsb.edu/~benh/research/downloads.html
 
@@ -5,6 +11,8 @@ https://www.cs.ucsb.edu/~benh/research/papers/hardekopf11flow.pdf
 
 Staged Flow-Sensitive Pointer Analysis as described by Hardekopf and Lin.
 Semi Spare analysis by Hardekopf and Lin.
+
+----------
 
 ----------
 
