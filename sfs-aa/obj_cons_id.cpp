@@ -219,7 +219,7 @@ void find_reach(u32 n, bitmap& vst)
   FOREACH(set_it,i,G[n].succ) { if (!vst.test(*i)) { find_reach(*i,vst); }}
 }
 
-  __attribute__ ((fastcall)) inline
+  inline
 u32 find(u32 n)
 {
   assert(n < G.size());
@@ -244,7 +244,7 @@ u32 find(u32 n)
 //     that b's only succ edge is to a, so the only edges we have to
 //     copy are the pred edges
 //
-  __attribute__ ((fastcall)) inline
+  inline
 u32 unite(u32 a, u32 b, bool t2 = false, bool t5 = false)
 {
   assert(CHK(a) && CHK(b));
@@ -329,7 +329,7 @@ void print_seg(const string& file, bool app = false)
   if (app) { out.open(file.c_str(),ios_base::app);   }
   else     { out.open(file.c_str(),ios_base::trunc); }
 
-  out << "strict digraph SEG {" << endl;
+  out << "strict digraph SEG {" << "\n";
 
   FOR1N(i,G.size()) {
     if (!RPP(i) || DEL(i)) { continue; }
@@ -342,17 +342,17 @@ void print_seg(const string& file, bool app = false)
 
     out << "\"";
     if (i == find(prog_start_node)) { out << ",color=red"; }
-    out << "];" << endl;
+    out << "];" << "\n";
 
     FOREACH(set_it,j,G[i].pred) {
       u32 p = find(*j);
       if (p == i || DEL(p)) { continue; }
 
-      out << "\t" << p << " -> " << i << ";" << endl;
+      out << "\t" << p << " -> " << i << ";" << "\n";
     }
   }
 
-  out << "}" << endl;
+  out << "}" << "\n";
   out.close();
 }
 
@@ -415,7 +415,7 @@ void T2()
   }
 }
 
-__attribute__ ((fastcall)) inline
+inline
 void t4_visit(u32 n)
 {
   assert(CHK(n));
@@ -472,7 +472,7 @@ void T4()
   assert(node_st.empty());
 }
 
-__attribute__ ((fastcall)) inline
+inline
 void t5_visit(u32 n)
 {
   assert(CHK(n) && !NP(n) && !RQ(n));
@@ -520,7 +520,7 @@ void T5()
   }
 }
 
-__attribute__ ((fastcall)) inline
+inline
 void t6_visit(u32 n, bool t7 = false)
 {
   assert(CHK(n));
@@ -725,7 +725,7 @@ void SFS::sfs_id()
   pre_opt_cleanup();
   if (USE_MEM_TIME) {
     print_time("ocs/clump_addr");
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 
   // compute PRE info
@@ -733,7 +733,7 @@ void SFS::sfs_id()
   PRE.runOnModule(*curr_module);
   if (USE_MEM_TIME) {
     print_time("PRE");
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 
   // optimize the constraints
@@ -788,7 +788,7 @@ void SFS::sfs_id()
     u32 tot = 0;
     FOREACH(u2bm_it,i,v2n) { tot += i->second.count(); }
 
-    cerr << "avg edges/var == " << (double)tot/v2n.size() << endl;
+    errs() << "avg edges/var == " << (double)tot/v2n.size() << "\n";
 
     FOR1N(i,G.size()) { G[i].succ.clear(); }
   }
@@ -910,7 +910,7 @@ void SFS::processBlock(u32 parent, BasicBlock *BB)
       call = true;
       id_call_insn(I);
       break;
-    case Instruction::Malloc:
+      //    case Instruction::Malloc:
     case Instruction::Alloca:
       assert(is_ptr);
       id_alloc_insn(I);
@@ -1039,7 +1039,7 @@ void SFS::processBlock(u32 parent, BasicBlock *BB)
           // we can add the interprocedural control-flow edges later,
           // as well as process indirect external calls
           //
-          idr_calls.push_back(make_pair<CallInst*,u32>(ci,n));
+          idr_calls.push_back(std::make_pair((CallInst*)ci,(u32)n));
 
           // make sure call inst has an associated object node
           //
@@ -1141,7 +1141,7 @@ void SFS::cons_opt_wrap()
 
   if (USE_MEM_TIME) {
     print_time("cons_opt"); 
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 }
 
@@ -1267,7 +1267,7 @@ void SFS::icfg_inter_edges()
 
   if (USE_MEM_TIME) { 
     print_time("icfg_inter_edges"); 
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 }
 
@@ -1357,7 +1357,7 @@ void SFS::process_idr_cons()
 
   if (USE_MEM_TIME) { 
     print_time("process_idr_cons");
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 }
 
@@ -1426,7 +1426,7 @@ void SFS::sfs_prep()
 
   if (USE_MEM_TIME) { 
     print_time("sfs_prep");
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 }
 
@@ -1492,7 +1492,7 @@ void SFS::partition_vars()
     if (rel.count(i->first)) { rel[i->first].set(0); }
   }
 
-  hash_map<bitmap,u32> eq;  // map relevant partitions to equiv. class
+  std::map<bitmap,u32> eq;  // map relevant partitions to equiv. class
 
   assert(var_part.empty());
   var_part.push_back(bitmap()); // 0 index reserved
@@ -1526,13 +1526,13 @@ void SFS::partition_vars()
   if (USE_STATS) {
     u32 cnt = 0;
     FOREACH(uv_it,i,o2p) { if (*i) { cnt++; }}
-    cerr << "num partitions == " << var_part.size() << " for "
-	 << cnt << " vars" << endl;
+    errs() << "num partitions == " << var_part.size() << " for "
+	 << cnt << " vars" << "\n";
   }
 
   if (USE_MEM_TIME) { 
     print_time("partition_vars");
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 }
 
@@ -1713,7 +1713,7 @@ void SFS::compute_seg()
 
   if (USE_MEM_TIME) { 
     print_time("compute_seg/parts"); 
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 
   // determine which load/store nodes can share points-to graphs; for
@@ -1721,9 +1721,9 @@ void SFS::compute_seg()
   // designate a rep node (the store node if it exists, an arbitrary
   // load node otherwise)
   // 
-  hash_map<bitmap,u32> st;
-  hash_map<bitmap,vector<u32> > ld;
-  typedef hash_map<bitmap,vector<u32> >::iterator bm2uv_it;
+  std::map<bitmap,u32> st;
+  std::map<bitmap,vector<u32> > ld;
+  typedef std::map<bitmap,vector<u32> >::iterator bm2uv_it;
 
   FOREACH(u2bm_it,i,n2g) {
     if (dfg.is_st(i->first)) {
@@ -1764,7 +1764,7 @@ void SFS::compute_seg()
 
   if (USE_MEM_TIME) { 
     print_time("compute_seg/sharing"); 
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 
   if (USE_DEBUG) {
@@ -1784,8 +1784,8 @@ void SFS::compute_seg()
   }
 
   if (USE_STATS) {
-    cerr << "loads shared == " << dfg.num_shared() << " out of " 
-	 << dfg.num_ld() << endl;
+    errs() << "loads shared == " << dfg.num_shared() << " out of " 
+	 << dfg.num_ld() << "\n";
   }
 
   // these are dead now
@@ -1805,8 +1805,8 @@ void SFS::compute_seg()
       }
     }
     std::sort(i->succ.begin(),i->succ.end());
-    uv_it e = std::unique(i->succ.begin(),i->succ.end());
-    i->succ.erase(e,i->succ.end());
+    uv_it ee = std::unique(i->succ.begin(),i->succ.end());
+    i->succ.erase(ee,i->succ.end());
   }
 
   for (ld_it i = dfg.ld_begin(), e = dfg.ld_end(); i != e; ++i) {
@@ -1842,13 +1842,13 @@ void SFS::compute_seg()
       }
     }
     std::sort(i->succ.begin(),i->succ.end());
-    uv_it e = std::unique(i->succ.begin(),i->succ.end());
-    i->succ.erase(e,i->succ.end());
+    uv_it ee = std::unique(i->succ.begin(),i->succ.end());
+    i->succ.erase(ee,i->succ.end());
   }
 
   if (USE_MEM_TIME) { 
     print_time("compute_seg/fix edges"); 
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 
   if (false && USE_STATS) { dfg.stats(var_part); }
@@ -1879,7 +1879,7 @@ void SFS::compute_seg()
 
   if (USE_MEM_TIME) { 
     print_time("compute_seg/prep nodes"); 
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   } 
 }
 
@@ -1974,6 +1974,6 @@ void SFS::process_seg(u32 part, u32 n)
   }
 
   if (false && USE_STATS) { //!!FIXME: investigate this later
-    if (dfg.is_np(first) && pred.empty()) { cerr << "nop w/ no preds" << endl; }
+    if (dfg.is_np(first) && pred.empty()) { errs() << "nop w/ no preds" << "\n"; }
   }
 }

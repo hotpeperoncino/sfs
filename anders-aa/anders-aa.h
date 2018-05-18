@@ -12,7 +12,7 @@ class AndersAA : public ModulePass
 public:
 
   static char ID;
-  AndersAA(): ModulePass((intptr_t)&ID), anders(0) {}
+ AndersAA():     ModulePass (ID) {}
   ~AndersAA(){
     if(anders)
       delete anders;

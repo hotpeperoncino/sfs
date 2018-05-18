@@ -114,7 +114,7 @@ const u32 lcd_size= 600, lcd_period= 999999999;
 //  first_var_node - the 1st node representing a real variable.
 const u32 i2p= 1, p_i2p= 2, first_var_node= 3;
 //When there are no structs, max_struct is assigned the smallest type.
-const Type *const min_struct= Type::Int8Ty;
+const Type *const min_struct = 0; // Type::getInt8Ty();
 //The offsets from a function's obj node to the return value and first arg.
 const u32 func_node_off_ret= 1, func_node_off_arg0= 2;
 //The starting union-find rank of any node.
@@ -190,7 +190,7 @@ namespace llvm{
     }
   };
 }
-namespace __gnu_cxx{
+namespace std {
   template<> struct hash<Constraint>{
     size_t operator () (const Constraint &X) const{
       return ((size_t)X.type<<29) ^ (X.dest<<12) ^ X.src ^ X.off;
@@ -393,7 +393,7 @@ protected:
   //The result of fdd_ithvar for each object node ID.
   vector<bdd> node_vars;
   //The names of unsupported external functions that were indirectly called.
-  hash_set<string> ext_failed;
+  std::set<string> ext_failed;
   //The complex constraints (load, store, GEP) from the optimized list.
   vector<Constraint> cplx_cons;
 
@@ -636,9 +636,10 @@ protected:
   const char* get_type_name(const Type *T) const{
     assert(T);
     if(curr_module){
-      const char *s= curr_module->getTypeName(T).c_str();
-      if(*s)
-        return s;
+      std::string type_str;
+      llvm::raw_string_ostream rso(type_str);
+      T->print(rso);
+      return rso.str().c_str();
     }
     //getDescription() seems buggy, sometimes runs out of memory
 //    return T->getDescription();

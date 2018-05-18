@@ -1,3 +1,25 @@
+#if  1
+#include <llvm/ADT/SparseBitVector.h>
+
+#define MySparseBitVectorElement SparseBitVectorElement
+#define MySparseBitVector SparseBitVector
+
+namespace llvm {
+// Convenience functions to allow Or and And without dereferencing in
+// the user code.
+
+
+template <unsigned ElementSize>
+inline bool operator<(const MySparseBitVector<ElementSize> &LHS,
+                        const MySparseBitVector<ElementSize> &RHS) {
+  abort();
+  return 0;
+}
+
+
+}
+
+#else
 //===- llvm/ADT/MySparseBitVector.h - Efficient Sparse BitVector -*- C++ -*- ===//
 //
 //                     The LLVM Compiler Infrastructure
@@ -21,9 +43,9 @@
 #include <cassert>
 #include <cstring>
 #include <algorithm>
-#include "llvm/Support/DataTypes.h"
-#include "llvm/Support/MathExtras.h"
-#include <llvm/Support/Streams.h>
+#include <llvm/Support/DataTypes.h>
+#include <llvm/Support/MathExtras.h>
+// #include <llvm/Support/Streams.h>
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ilist.h"
 namespace llvm {
@@ -48,6 +70,8 @@ namespace llvm {
 // OPT: the implementation can be optimized using SSE2+ instructions
 // OPT: cap the alloc_stack to limit its growth
 // OPT: improve the custom allocator to exploit locality (maybe use boost::pool)
+
+
 
 template <unsigned ElementSize = 128>
 struct MySparseBitVectorElement {
@@ -112,6 +136,9 @@ public:
   bool operator!=(const MySparseBitVectorElement &RHS) const {
     return !(*this == RHS);
   }
+  bool operator<(const MySparseBitVectorElement &RHS) const {
+    return (*this < RHS);
+  }
 
   // Return the bits that make up word Idx in our element.
   BitWord word(unsigned Idx) const {
@@ -148,14 +175,26 @@ public:
     return Bits[Idx / BITWORD_SIZE] & (1L << (Idx % BITWORD_SIZE));
   }
 
+  static int CTZ(unsigned long x, int width) {
+    abort();
+    return 0;
+  }
+  //  int countPopulation(llvm::MySparseBitVectorElement<ElementSize>::BitWord&x, int width) 
+  static int countPopulation(unsigned long x, int width) {
+    abort();
+    return 0;
+  }
+
   unsigned count() const {
     unsigned NumBits = 0;
     for (unsigned i = 0; i < BITWORDS_PER_ELEMENT; ++i)
-      if (sizeof(BitWord) == 4)
-        NumBits += CountPopulation_32(Bits[i]);
-      else if (sizeof(BitWord) == 8)
-        NumBits += CountPopulation_64(Bits[i]);
-      else
+      if (sizeof(BitWord) == 4) {
+	int i = countPopulation(Bits[i],32);
+        NumBits += i;
+      } else if (sizeof(BitWord) == 8) {
+	int i = countPopulation(Bits[i],64);
+        NumBits += i;
+      } else
         assert(0 && "Unsupported!");
     return NumBits;
   }
@@ -165,9 +204,9 @@ public:
     for (unsigned i = 0; i < BITWORDS_PER_ELEMENT; ++i)
       if (Bits[i] != 0) {
         if (sizeof(BitWord) == 4)
-          return i * BITWORD_SIZE + CountTrailingZeros_32(Bits[i]);
+          return i * BITWORD_SIZE + CTZ(Bits[i],32);
         else if (sizeof(BitWord) == 8)
-          return i * BITWORD_SIZE + CountTrailingZeros_64(Bits[i]);
+          return i * BITWORD_SIZE + CTZ(Bits[i],64);
         else
           assert(0 && "Unsupported!");
       }
@@ -191,9 +230,9 @@ public:
 
     if (Copy != 0) {
       if (sizeof(BitWord) == 4)
-        return WordPos * BITWORD_SIZE + CountTrailingZeros_32(Copy);
+        return WordPos * BITWORD_SIZE + CTZ(Copy,32);
       else if (sizeof(BitWord) == 8)
-        return WordPos * BITWORD_SIZE + CountTrailingZeros_64(Copy);
+        return WordPos * BITWORD_SIZE + CTZ(Copy,64);
       else
         assert(0 && "Unsupported!");
     }
@@ -202,9 +241,9 @@ public:
     for (unsigned i = WordPos+1; i < BITWORDS_PER_ELEMENT; ++i)
       if (Bits[i] != 0) {
         if (sizeof(BitWord) == 4)
-          return i * BITWORD_SIZE + CountTrailingZeros_32(Bits[i]);
+          return i * BITWORD_SIZE + CTZ(Bits[i], 32);
         else if (sizeof(BitWord) == 8)
-          return i * BITWORD_SIZE + CountTrailingZeros_64(Bits[i]);
+          return i * BITWORD_SIZE + CTZ(Bits[i], 64);
         else
           assert(0 && "Unsupported!");
       }
@@ -1178,11 +1217,17 @@ inline bool operator &=(MySparseBitVector<ElementSize> &LHS,
                         const MySparseBitVector<ElementSize> *RHS) {
   return LHS &= (*RHS);
 }
+template <unsigned ElementSize>
+inline bool operator<(const MySparseBitVector<ElementSize> &LHS,
+                        const MySparseBitVector<ElementSize> &RHS) {
+  return LHS < RHS;
+}
+
 
 
 // Dump a MySparseBitVector to a stream
 template <unsigned ElementSize>
-void dump(const MySparseBitVector<ElementSize> &LHS, llvm::OStream &out) {
+void dump(const MySparseBitVector<ElementSize> &LHS, llvm::raw_ostream &out) {
   out << "[ ";
 
   typename MySparseBitVector<ElementSize>::iterator bi;
@@ -1195,4 +1240,5 @@ void dump(const MySparseBitVector<ElementSize> &LHS, llvm::OStream &out) {
 } // end llvm namespace
 
 
+#endif
 #endif

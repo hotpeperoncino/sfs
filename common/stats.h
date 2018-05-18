@@ -3,10 +3,12 @@
 
 #include "common.h"
 #include "cg.h"
-#include "dfg.h"
+#include "../sso-fs/dfg.h"
 #include "data.h"
-#include "varinfo.h"
-#include PTRINFO_H
+#include "../sso-fs/varinfo.h"
+#include "../sso-fs/ptrinfo.bdd.h"
+using llvm::errs;
+using llvm::dbgs;
 
 // class to display various statistics about the analysis
 //
@@ -28,29 +30,29 @@ public:
 
 void Stats::print_pre(Module& M, CG& cg, VarInfo& vi, DFG& dfg)
 {
-  cout << "CG STATS:" << endl;
+  dbgs() << "CG STATS:" << "\n";
   cg.stats(M);
 
-  cout << "VARINFO STATS:" << endl
-       << "  top-level vars == " << num_top << endl
-       << "     bottom vars == " << num_btm << endl
-       << "      total vars == " << num_vars << endl 
-       << "null GEP offsets == " << nulloff << endl;
+  dbgs() << "VARINFO STATS:" << "\n"
+       << "  top-level vars == " << num_top << "\n"
+       << "     bottom vars == " << num_btm << "\n"
+       << "      total vars == " << num_vars << "\n" 
+       << "null GEP offsets == " << nulloff << "\n";
 
   vi.stats();
-  cout << endl;
+  dbgs() << "\n";
 
-  cout << "DFG STATS:" << endl;
+  dbgs() << "DFG STATS:" << "\n";
   dfg.stats(M);
 }
 
 void Stats::print_post(DFG &dfg, PtrInfo &ti)
 {
-  cout << "total functions == " << fun_proc << endl << endl;
+  dbgs() << "total functions == " << fun_proc << "\n" << "\n";
 
-  cout << "unique DFnodes == " << uniq_dfg.size() << endl
-       << " total DFnodes == " << dfg_proc << endl
-       << "    efficiency == " << (float)dfg_change/dfg_proc << endl << endl;
+  dbgs() << "unique DFnodes == " << uniq_dfg.size() << "\n"
+       << " total DFnodes == " << dfg_proc << "\n"
+       << "    efficiency == " << (float)dfg_change/dfg_proc << "\n" << "\n";
 
   vector<DFnode*> nodes;
   u32 gep_null = 0, cpy_null = 0;
@@ -70,20 +72,20 @@ void Stats::print_post(DFG &dfg, PtrInfo &ti)
     nodes.clear();
   }
 
-  cout << "breakdown:" << endl
-       << " -- alloc  == " << num_alloc << endl
+  dbgs() << "breakdown:" << "\n"
+       << " -- alloc  == " << num_alloc << "\n"
        << " -- copy   == " << num_copy << " (" << cpy_null
-       << " null visited nodes)" << endl
+       << " null visited nodes)" << "\n"
        << " -- gep    == " << num_gep << " (" << gep_null
-       << " null visited nodes)" << endl
-       << " -- load   == " << num_load << endl
-       << " -- store  == " << num_store << endl
-       << " -- store2 == " << num_store2 << endl
-       << " -- call   == " << num_call << endl
-       << " -- icall  == " << num_icall << endl
-       << " -- ret    == " << num_ret << endl << endl;
+       << " null visited nodes)" << "\n"
+       << " -- load   == " << num_load << "\n"
+       << " -- store  == " << num_store << "\n"
+       << " -- store2 == " << num_store2 << "\n"
+       << " -- call   == " << num_call << "\n"
+       << " -- icall  == " << num_icall << "\n"
+       << " -- ret    == " << num_ret << "\n" << "\n";
 
-  cout << "unresolved indirect calls == " << icall_nores.size() << endl;
+  dbgs() << "unresolved indirect calls == " << icall_nores.size() << "\n";
 
   dfns_it k;
 
@@ -92,19 +94,19 @@ void Stats::print_post(DFG &dfg, PtrInfo &ti)
     else                     { ++i; }
   }
 
-  cout << "   final unresolved calls == " << icall_nores.size()
-       << " / " << icall_nores.size() + icall_res.size() << endl;
+  dbgs() << "   final unresolved calls == " << icall_nores.size()
+       << " / " << icall_nores.size() + icall_res.size() << "\n";
 
-  cout << "indirect isAlloc/hasStatic calls: " << idr_alloc.size() << endl;
+  dbgs() << "indirect isAlloc/hasStatic calls: " << idr_alloc.size() << "\n";
 
   for (funs_it i = idr_alloc.begin(), e = idr_alloc.end(); i != e; ++i) {
-    cout << "\t" << (*i)->getNameStr() << endl;
+    dbgs() << "\t" << (*i)->getName() << "\n";
   }
-  cout << endl;
+  dbgs() << "\n";
 
-  cout << "potential preserving icalls == " << psv_icalls.size() << endl
+  dbgs() << "potential preserving icalls == " << psv_icalls.size() << "\n"
        << "   actual preserving icalls == " << psv_icalls.size()-not_psv.size()
-       << endl << endl;
+       << "\n" << "\n";
 
 #ifdef PTRINFO_BIT
   set<PtrInfo*> seen;
@@ -133,13 +135,13 @@ void Stats::print_post(DFG &dfg, PtrInfo &ti)
   num_bits += ti.size();
   num_els += ti.num_els();
 
-  cout << " points-to bits == " << num_bits << endl
-       << "  points-to els == " << num_els << endl
-       << "average density == " << (double)num_bits/num_els << endl
-       << "   wasted space == " << (u32)(((num_els*(double)(BM_ELSZ+64)/8)-num_bits)/(1024*1024)) << " MB" << endl
+  dbgs() << " points-to bits == " << num_bits << "\n"
+       << "  points-to els == " << num_els << "\n"
+       << "average density == " << (double)num_bits/num_els << "\n"
+       << "   wasted space == " << (u32)(((num_els*(double)(BM_ELSZ+64)/8)-num_bits)/(1024*1024)) << " MB" << "\n"
        << " alloc stack sz == " << bitmap::stack_size() << " ("
        << ((double)(BM_ELSZ+64)/8*bitmap::stack_size())/(1024*1024)
-       << " MB)" << endl << endl;
+       << " MB)" << "\n" << "\n";
 
 #endif
 }

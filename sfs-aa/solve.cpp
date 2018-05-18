@@ -52,7 +52,7 @@ bool SFS::solve()
 
   if (USE_MEM_TIME) {
     print_time("solve");
-    cerr << "memory == " << (get_mem_usage()+512)/1024 << " MB" << endl;
+    errs() << "memory == " << (get_mem_usage()+512)/1024 << " MB" << "\n";
   }
 
   return false;

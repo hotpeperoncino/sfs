@@ -332,9 +332,9 @@ static u32 curr_dfs;
 //The non-root nodes in the current SCC.
 static stack<u32> dfs_stk;
 //The ptr_eq for each set of incoming labels (HVN only).
-static hash_map<bitmap, u32> lbl2pe;
+static std::map<bitmap, u32> lbl2pe;
 //The RHS of any GEP constraint is mapped to a label.
-static hash_map<pair<u32, u32>, u32> gep2pe;
+static std::map<pair<u32, u32>, u32> gep2pe;
 
 //------------------------------------------------------------------------------
 //Return the rep node of the SCC containing (n), with path compression.
@@ -593,7 +593,7 @@ void Anders::add_off_edges(bool hcd){
         if(!hcd){
           u32 pe;
           pair<u32, u32> R(C.src, C.off);
-          hash_map<pair<u32, u32>, u32>::const_iterator i_g2p= gep2pe.find(R);
+          std::map<pair<u32, u32>, u32>::const_iterator i_g2p= gep2pe.find(R);
           if(i_g2p == gep2pe.end()){
             gep2pe[R]= pe= next_ptr_eq++;
           }else{
@@ -718,10 +718,10 @@ void Anders::hvn_label(u32 n){
   if(pe.empty()){
     pe.set(0);
   //If there was >1 incoming label, replace the set by its ID.
-  }else if(!pe.single_bit_p()){
-    hash_map<bitmap, u32>::const_iterator i_l2p= lbl2pe.find(pe);
+  }else if(!bitmap_single_bit_p(pe)){
+    std::map<bitmap, u32>::const_iterator i_l2p= lbl2pe.find(pe);
     if(i_l2p == lbl2pe.end()){
-      lbl2pe[pe]= next_ptr_eq;
+      lbl2pe[pe] = next_ptr_eq;
       pe.clear();
       pe.set(next_ptr_eq++);
     }else{
@@ -730,7 +730,7 @@ void Anders::hvn_label(u32 n){
     }
   }
   //If there was only 1, keep it.
-  assert(N->ptr_eq.single_bit_p());
+  assert(bitmap_single_bit_p(N->ptr_eq));
 }
 
 //------------------------------------------------------------------------------
@@ -769,7 +769,7 @@ void Anders::merge_ptr_eq(){
   DPUTS("***** Merging pointer-equivalent nodes\n");
   u32 nn= nodes.size();
   //The first node (of the main graph) with the given ptr_eq.
-  hash_map<bitmap, u32> pe2node;
+  std::map<bitmap, u32> pe2node;
   FORN(i, nn){
     u32 on= main2off[i];
     //If this node has no offline version, it's not pointer-equivalent.
@@ -780,13 +780,13 @@ void Anders::merge_ptr_eq(){
     assert(!pe.empty());
     //Non-ptr nodes should be deleted from the constraints.
     if(pe.test(0)){
-      assert(pe.single_bit_p());
+      assert(bitmap_single_bit_p(pe));
       nodes[i]->nonptr= 1;
       continue;
     }
     //Anything previously marked as non-ptr cannot have another label.
     assert(!nodes[i]->nonptr);
-    hash_map<bitmap, u32>::iterator i_p2n= pe2node.find(pe);
+    std::map<bitmap, u32>::iterator i_p2n= pe2node.find(pe);
     if(i_p2n == pe2node.end()){
       //This PE was not seen yet, so (i) is its first node.
       assert(nodes[i]->is_rep());
@@ -1007,7 +1007,7 @@ void Anders::factor_ls(){
   //Map the (src,off) pair of each load_cons to the set of dest nodes,
   //  and the (dest,off) of each store_cons to the set of src.
   //Also delete all load/store cons. from the main list.
-  hash_map<pair<u32, u32>, set<u32> > loads, stores;
+  std::map<pair<u32, u32>, set<u32> > loads, stores;
   vector<Constraint> old_cons;
   old_cons.swap(constraints);
   FORN(i, old_cons.size()){
@@ -1022,7 +1022,7 @@ void Anders::factor_ls(){
   }
   old_cons.clear();
 
-  hash_map<pair<u32, u32>, set<u32> >::const_iterator it, ie;
+  std::map<pair<u32, u32>, set<u32> >::const_iterator it, ie;
   for(it= loads.begin(), ie= loads.end(); it != ie; ++it){
     factor_ls(it->second, it->first.first, it->first.second, 1);
   }

@@ -35,6 +35,9 @@
 #include "../include/printbuf.h"
 #include "../include/anders.h"
 
+using llvm::errs;
+using llvm::dbgs;
+
 //If this was a member of Anders, none of the print methods could be const.
 static PrintBuf pb;
 
@@ -446,7 +449,7 @@ void Anders::print_metrics() const{
   //  the difference is a measure of remaining pointer equivalence.
   u32 n_pts= 0, n_pts_uniq= 0;
   u64 sum_pts= 0, sum_pts_uniq= 0;
-  hash_set<u32> pts_seen;
+  std::set<u32> pts_seen;
   FORN(i, nn){
     const Node *N= nodes[i];
     u32 sz= (u32)bdd_satcountset(N->points_to, pts_dom);
@@ -477,24 +480,24 @@ void Anders::list_ext_calls(Module &M) const{
   set<Function*> decl, intr;
 
   for (fmod_it i = M.begin(), e = M.end(); i != e; ++i) {
-    if (i->isDeclaration()) { decl.insert(i); }
-    else if (i->isIntrinsic()) { intr.insert(i); }
+    if (i->isDeclaration()) { decl.insert(&*i); }
+    else if (i->isIntrinsic()) { intr.insert(&*i); }
   }
 
   for (glob_it i = M.global_begin(), e = M.global_end(); i != e; ++i) {
-    if (!i->hasInitializer()) { glob.insert(i); }
+    if (!i->hasInitializer()) { glob.insert(&*i); }
   }
 
-  cerr << "number of intrinsic functions == " << intr.size() << endl
-       << " number of declared functions == " << decl.size() << endl
-       << "   number of declared globals == " << glob.size() << endl;
+  errs() << "number of intrinsic functions == " << intr.size() << "\n"
+       << " number of declared functions == " << decl.size() << "\n"
+       << "   number of declared globals == " << glob.size() << "\n";
 
   if (!intr.empty()) {
-    cerr << endl << "INTRINSIC" << endl << endl;
+    errs() << "\n" << "INTRINSIC" << "\n" << "\n";
     for (funs_it i = intr.begin(), e = intr.end(); i != e; ++i) {
       string name= (*i)->getName();
       if (isa<PointerType>((*i)->getReturnType())){
-        cerr << "(r) ";
+        errs() << "(r) ";
       }
       else {
         bool pts = false;
@@ -503,22 +506,22 @@ void Anders::list_ext_calls(Module &M) const{
           if (isa<PointerType>(j->getType())) { pts = true; break; }
         }
 
-        if (!pts) { cerr << "(-) "; }
+        if (!pts) { errs() << "(-) "; }
         else{
-          cerr << "(a) ";
+          errs() << "(a) ";
         }
       }
 
-      cerr << name << endl;
+      errs() << name << "\n";
     }
   }
 
   if (!decl.empty()) {
-    cerr << endl << "DECLARED FUNCTIONS" << endl << endl;
+    errs() << "\n" << "DECLARED FUNCTIONS" << "\n" << "\n";
     for (funs_it i = decl.begin(), e = decl.end(); i != e; ++i) {
       string name= (*i)->getName();
       if (isa<PointerType>((*i)->getReturnType())){
-        cerr << "(r) ";
+        errs() << "(r) ";
       }
       else {
         bool pts = false;
@@ -527,23 +530,23 @@ void Anders::list_ext_calls(Module &M) const{
           if (isa<PointerType>(j->getType())) { pts = true; break; }
         }
 
-        if (!pts) { cerr << "(-) "; }
+        if (!pts) { errs() << "(-) "; }
         else{
-          cerr << "(a) ";
+          errs() << "(a) ";
         }
       }
 
-      cerr << name << endl;
+      errs() << name << "\n";
     }
   }
 
   if (!glob.empty()) {
-    cerr << endl << "DECLARED GLOBALS" << endl << endl;
+    errs() << "\n" << "DECLARED GLOBALS" << "\n" << "\n";
     for (gvs_it i = glob.begin(), e = glob.end(); i != e; ++i) {
-      if (hasPtr((*i)->getType()->getContainedType(0))) { cerr << "(*) "; }
-      else { cerr << "    "; }
+      if (hasPtr((*i)->getType()->getContainedType(0))) { errs() << "(*) "; }
+      else { errs() << "    "; }
 
-      cerr << (*i)->getNameStr() << endl;
+      errs() << (*i)->getName() << "\n";
     }
   }
 }
@@ -566,8 +569,9 @@ void Anders::list_ext_unknown(Module &M) const{
           break;
         }
       }
-      if(rel && extinfo->get_type(it) == EFT_OTHER){
-        names.push_back(it->getNameStart());
+      llvm::Function *f = &*it;
+      if(rel && extinfo->get_type(f) == EFT_OTHER){
+        names.push_back(f->getName());
       }
     }
   }

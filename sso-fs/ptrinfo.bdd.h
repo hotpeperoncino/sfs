@@ -5,6 +5,8 @@
 
 #include "../common/common.h"
 #include "varinfo.h"
+using llvm::errs;
+using llvm::dbgs;
 
 struct DFnode; // forward declaration
 
@@ -296,7 +298,7 @@ void PtrInfo::init(u32 n, bitmap& off, VarInfo *vi)
   bdd_disable_reorder();
   bdd_setmaxincrease(1000000);
   
-  int vdom[] = { n };
+  int vdom[] = { (int)n };
   fdd_extdomain(vdom,1); // points-to domain
   fdd_extdomain(vdom,1); // points-to range
 
@@ -682,7 +684,7 @@ void PtrInfo::print()
     sort<uv_it>(dv.begin(),dv.end());
     
     for (u32 i = 0, e = dv.size(); i < e; ++i) {
-      cout << dv[i] << " : [";
+      outs() << dv[i] << " : [";
       
       bdd pts = TOPD(PTS(pd[dv[i]],p));
       EL(pts);
@@ -690,36 +692,36 @@ void PtrInfo::print()
       sort<uv_it>(el.begin(),el.end());
       
       for (u32 j = 0; j < el.size(); ++j) {
-	cout << " " << el[j];
+	outs() << " " << el[j];
       }
       
-      cout << "  ]" << endl;
+      outs() << "  ]" << "\n";
     }
   }
   else {
     for (pts_it i = tp.begin(), e = tp.end(); i != e; ++i) {
       assert(i->second != bddfalse);
-      cout << i->first << " : [";
+      outs() << i->first << " : [";
 
       EL(i->second);
       sort<uv_it>(el.begin(),el.end());
       
       for (u32 j = 0; j < el.size(); ++j) {
-	cout << " " << el[j];
+	outs() << " " << el[j];
       }
       
-      cout << "  ]" << endl;
+      outs() << "  ]" << "\n";
     }
   }
 
-  cout << flush;
+ 
 }
 
 void PtrInfo::print(u32 i)
 {
   bdd pts = bddfalse;
 
-  cout << i << " : [";
+  outs() << i << " : [";
 
   if (ti) { assert(i < pd.size()); pts = TOPD(PTS(pd[i],p)); }
   else {
@@ -732,11 +734,11 @@ void PtrInfo::print(u32 i)
     sort<uv_it>(el.begin(),el.end());
     
     for (u32 i = 0, e = el.size(); i < e; ++i) {
-      cout << " " << el[i];
+      outs() << " " << el[i];
     }
   }
 
-  cout << "  ]" << endl << flush;
+  outs() << "  ]" << "\n";
 }
 
 void PtrInfo::print_eq()
@@ -763,17 +765,17 @@ void PtrInfo::print_eq()
       bitmap& ptrs = eq[TOINT(pts)];
 
       for (bm_it j = ptrs.begin(), e = ptrs.end(); j != e; ++j) {
-	cout << *j << " ";
+	outs() << *j << " ";
 	done.insert(*j);
       }
 
-      cout << ": [";
+      outs() << ": [";
 
       EL(pts);
       sort<uv_it>(el.begin(),el.end());
       
-      for (u32 j = 0, e = el.size(); j < e; ++j) { cout << " " << el[j]; }
-      cout << "  ]" << endl << flush;      
+      for (u32 j = 0, e = el.size(); j < e; ++j) { outs() << " " << el[j]; }
+      outs() << "  ]" << "\n";      
     }
   }
   else {
@@ -788,19 +790,19 @@ void PtrInfo::print_eq()
       bitmap& ptrs = eq[TOINT(i->second)];
 
       for (bm_it j = ptrs.begin(), e = ptrs.end(); j != e; ++j) {
-	cout << *j << " ";
+	outs() << *j << " ";
 	done.insert(*j);
       }
 
-      cout << ": [";
+      outs() << ": [";
 
       bdd_allsat(i->second,expand_pd);
       sort<uv_it>(el.begin(),el.end());
       
-      for (u32 j = 0, e = el.size(); j < e; ++j) { cout << " " << el[j]; }
+      for (u32 j = 0, e = el.size(); j < e; ++j) { outs() << " " << el[j]; }
       el.clear();
 
-      cout << "  ]" << endl << flush;
+      outs() << "  ]" << "\n";
     }
   }
 }
@@ -825,13 +827,13 @@ void PtrInfo::print_hist()
     }
   }
 
-  cout << "[SIZE]\t[NUMBER OF POINTS-TO SETS]" << endl;
+  outs() << "[SIZE]\t[NUMBER OF POINTS-TO SETS]" << "\n";
 
   for (u2u_it i = hist.begin(), e = hist.end(); i != e; ++i) {
-    cout << i->first << "\t" << i->second << endl;
+    outs() << i->first << "\t" << i->second << "\n";
   }
 
-  cout << endl;
+  outs() << "\n";
 }
 
 PtrInfo* PtrInfo::diff(PtrInfo *rhs)
@@ -881,9 +883,9 @@ void PtrInfo::compute_pe()
     }
   }
 
-  cout << "pointer equivalence:" << endl
-       << "   -- number of variables  == " << nv << endl
-       << "   -- number of eq classes == " << pe.size() << endl;
+  outs()   << "pointer equivalence:" << "\n"
+       << "   -- number of variables  == " << nv << "\n"
+       << "   -- number of eq classes == " << pe.size() << "\n"  ;
 }
 
 void PtrInfo::collapse_pe()

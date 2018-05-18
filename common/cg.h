@@ -143,17 +143,17 @@ void CG::stats(Module &M)
   u32 num_int_adr = 0;
 
   for (fmod_it i = M.begin(), e = M.end(); i != e; ++i) {
-    if (adrp(i)) {
+    if (adrp(&*i)) {
       num_adr++;
-      if (!ext->is_ext(i)) { num_int_adr++; }
+      if (!ext->is_ext(&*i)) { num_int_adr++; }
     }
 
-    if (ext->is_ext(i)) { num_ext++; continue; }
+    if (ext->is_ext(&*i)) { num_ext++; continue; }
 
     num_int++;
 
-    assert(info[i]);
-    FunInfo *fi = info[i];
+    assert(info[&*i]);
+    FunInfo *fi = info[&*i];
 
     if (fi->rec) { num_rec++; }
     if (fi->psv) { num_psv++; }
@@ -163,21 +163,22 @@ void CG::stats(Module &M)
 
   double glob_avg = (double)num_glob/num_int;
 
-  cout << "   internal functions == " << num_int << endl
-       << "   external functions == " << num_ext << endl
-       << "  recursive functions == " << num_rec << endl
+  dbgs() << "   internal functions == " << num_int << "\n"
+       << "   external functions == " << num_ext << "\n"
+       << "  recursive functions == " << num_rec << "\n"
        << " addr-taken functions == " << num_adr
-       << " [internal == " << num_int_adr << "]" << endl
-       << " preserving functions == " << num_psv << endl
-       << "  avg global pointers == " << glob_avg << endl << endl;
+       << " [internal == " << num_int_adr << "]" << "\n"
+       << " preserving functions == " << num_psv << "\n"
+       << "  avg global pointers == " << glob_avg << "\n" << "\n";
 }
 
 void CG::print(const string& file)
 {
-  ofstream out(file.c_str(),ios_base::trunc);
+  std::string s("");
+  llvm::raw_string_ostream out(s);
 
-  out << "digraph CG {" << endl
-      << "\tgraph [ label=\"CG\",size=\"8.5,11\" ];" << endl << endl;
+  out << "digraph CG {" << "\n"
+      << "\tgraph [ label=\"CG\",size=\"8.5,11\" ];" << "\n" << "\n";
 
   for (cg_it i = info.begin(), e = info.end(); i != e; ++i) {
     Function *F = i->first;
@@ -185,19 +186,18 @@ void CG::print(const string& file)
 
     if (!fi->vst) { continue; }
 
-    out << "\t" << fi->topo << " [label=\"" << F->getNameStr() 
-        << "\"];" << endl;
+    out << "\t" << fi->topo << " [label=\"" << F->getName() 
+        << "\"];" << "\n";
 
     for (funs_it j = fi->succ.begin(), e = fi->succ.end(); j != e; ++j) {
       FunInfo *fi2 = info[*j];
       assert(fi2);
 
-      out << "\t" << fi->topo << " -> " << fi2->topo << ";" << endl;
+      out << "\t" << fi->topo << " -> " << fi2->topo << ";" << "\n";
     }
   }
 
-  out << "}" << endl;
-  out.close();
+  out << "}" << "\n";
 }
 
 void CG::mark_reach(set<Function*>& Fs)
@@ -227,18 +227,18 @@ void CG::mark_reach(set<Function*>& Fs)
 void CG::computeInitInfo(Module& M)
 {
   for (fmod_it i = M.begin(), e = M.end(); i != e; ++i) {
-    if (escapes(i)) { adr.push_back(i); }
-    if (ext->is_ext(i)) { continue; }
+    if (escapes(&*i)) { adr.push_back(&*i); }
+    if (ext->is_ext(&*i)) { continue; }
 
     FunInfo *fi = new FunInfo;
-    info[i] = fi;
+    info[&*i] = fi;
     
-    for (inst_iterator k = inst_begin(i); k != inst_end(i); ++k) {
+    for (inst_iterator k = inst_begin(&*i); k != inst_end(&*i); ++k) {
       if (CallInst *ci = dyn_cast<CallInst>(&*k)) { // call instruction
         if (Function *callee = calledFunction(ci)) { // direct call
           if (!ext->is_ext(callee)) { // not external
             fi->succ.insert(callee);
-            if (callee == i) { fi->rec = true; } // self-recursive
+            if (callee == &*i) { fi->rec = true; } // self-recursive
           }
         }
         else if (!isa<InlineAsm>(ci->getCalledValue())) { // indirect call
@@ -286,7 +286,7 @@ void CG::computeInitInfo(Module& M)
           if (ext->is_ext(F)) { continue; } // malloc, etc
 
           assert(info[F]);
-          info[F]->globs.insert(i);
+          info[F]->globs.insert(&*i);
         }
       }
     }

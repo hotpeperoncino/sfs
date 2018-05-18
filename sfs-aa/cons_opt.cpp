@@ -1,4 +1,6 @@
 #include "sfs-aa.h"
+using llvm::errs;
+using llvm::dbgs;
 
 namespace { // anon namespace for stuff local to this file
 
@@ -21,8 +23,8 @@ u32 pe_lbl;         // next label to use
 u32 dfs_num;        // for tarjans
 stack<u32> node_st; // for tarjans
 
-hash_map<pair<u32,u32>, u32> gep2pe; // GEP var,off -> lbl
-typedef hash_map<pair<u32,u32>, u32>::const_iterator pr2u_cit;
+std::map<pair<u32,u32>, u32> gep2pe; // GEP var,off -> lbl
+typedef std::map<pair<u32,u32>, u32>::const_iterator pr2u_cit;
 
 #define RPP(x) (G[x].rep > G.size()) // is x a set rep?
 #define RNK(x) (MAX_U32 - G[x].rep)  // the rank of rep x
@@ -173,7 +175,7 @@ void SFS::cons_opt(vector<u32>& redir)
 
   // merge nodes based on the detected equivalences
   //
-  hash_map<bitmap,u32> eq;
+  std::map<bitmap,u32> eq;
 
   FOR1N(i,G.size()) {
     assert(nodes[i]->is_rep());

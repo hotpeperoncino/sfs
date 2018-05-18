@@ -103,7 +103,7 @@ void Anders::run_cleanup(){
 //Delete the points-to sets not needed by the clients.
 void Anders::pts_cleanup(){
   //BDD id -> first ptr-eq. node.
-  hash_map<u32, u32> eq;
+  std::map<u32, u32> eq;
 
   FORN(i, nodes.size()){
     Node *N= nodes[i];
@@ -118,7 +118,7 @@ void Anders::pts_cleanup(){
 
     if (N->points_to != bddfalse) {
       u32 idp= N->points_to.id();
-      hash_map<u32, u32>::iterator j= eq.find(idp);
+      std::map<u32, u32>::iterator j= eq.find(idp);
       if (j == eq.end()) { eq[idp] = i; }
       else { merge_nodes(get_node_rep(i),get_node_rep(j->second)); }
     }

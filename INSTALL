@@ -1,3 +1,4 @@
-
-cd ext/buddy; autoreconf -i; configure --prefix= ; make; make install
-cd ext/; autoreconf -i; configure --prefix= ; make; make install
+git submodule update -i
+export PREFIX=
+cd ext/buddy; autoreconf -i; configure --prefix=$PREFIX ; make; make install
+cd ext/; autoreconf -i; configure --prefix=$PREFIX ; make; make install

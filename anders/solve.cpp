@@ -290,7 +290,7 @@ bool Anders::solve(){
     PUTS("]\n");
   if(USE_STATS && !ext_failed.empty()){
     PUTS("!! Unsupported indirect calls of ext. functions:\n");
-    for(hash_set<string>::iterator it= ext_failed.begin(),
+    for(std::set<string>::iterator it= ext_failed.begin(),
         ie= ext_failed.end(); it != ie; ++it){
       PUTS(it->c_str());
       putc('\n', stderr);

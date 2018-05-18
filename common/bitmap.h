@@ -1,3 +1,25 @@
+#if  1
+#include <llvm/ADT/SparseBitVector.h>
+
+#define MySparseBitVectorElement SparseBitVectorElement
+#define MySparseBitVector SparseBitVector
+
+namespace llvm {
+// Convenience functions to allow Or and And without dereferencing in
+// the user code.
+
+
+template <unsigned ElementSize>
+inline bool operator<(const MySparseBitVector<ElementSize> &LHS,
+                        const MySparseBitVector<ElementSize> &RHS) {
+  abort();
+  return 0;
+}
+
+
+}
+
+#else
 //===- llvm/ADT/MySparseBitVector.h - Efficient Sparse BitVector -*- C++ -*- ===//
 //
 //                     The LLVM Compiler Infrastructure
@@ -21,9 +43,10 @@
 #include <cassert>
 #include <cstring>
 #include <algorithm>
-#include "llvm/Support/DataTypes.h"
+#include <llvm/Support/DataTypes.h>
+#include <llvm/Support/MathExtras.h>
+// #include <llvm/Support/Streams.h>
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/MathExtras.h"
 #include "llvm/ADT/ilist.h"
 namespace llvm {
 
@@ -47,6 +70,8 @@ namespace llvm {
 // OPT: the implementation can be optimized using SSE2+ instructions
 // OPT: cap the alloc_stack to limit its growth
 // OPT: improve the custom allocator to exploit locality (maybe use boost::pool)
+
+
 
 template <unsigned ElementSize = 128>
 struct MySparseBitVectorElement {
@@ -111,6 +136,9 @@ public:
   bool operator!=(const MySparseBitVectorElement &RHS) const {
     return !(*this == RHS);
   }
+  bool operator<(const MySparseBitVectorElement &RHS) const {
+    return (*this < RHS);
+  }
 
   // Return the bits that make up word Idx in our element.
   BitWord word(unsigned Idx) const {
@@ -147,14 +175,26 @@ public:
     return Bits[Idx / BITWORD_SIZE] & (1L << (Idx % BITWORD_SIZE));
   }
 
+  static int CTZ(unsigned long x, int width) {
+    abort();
+    return 0;
+  }
+  //  int countPopulation(llvm::MySparseBitVectorElement<ElementSize>::BitWord&x, int width) 
+  static int countPopulation(unsigned long x, int width) {
+    abort();
+    return 0;
+  }
+
   unsigned count() const {
     unsigned NumBits = 0;
     for (unsigned i = 0; i < BITWORDS_PER_ELEMENT; ++i)
-      if (sizeof(BitWord) == 4)
-        NumBits += CountPopulation_32(Bits[i]);
-      else if (sizeof(BitWord) == 8)
-        NumBits += CountPopulation_64(Bits[i]);
-      else
+      if (sizeof(BitWord) == 4) {
+	int i = countPopulation(Bits[i],32);
+        NumBits += i;
+      } else if (sizeof(BitWord) == 8) {
+	int i = countPopulation(Bits[i],64);
+        NumBits += i;
+      } else
         assert(0 && "Unsupported!");
     return NumBits;
   }
@@ -164,9 +204,9 @@ public:
     for (unsigned i = 0; i < BITWORDS_PER_ELEMENT; ++i)
       if (Bits[i] != 0) {
         if (sizeof(BitWord) == 4)
-          return i * BITWORD_SIZE + CountTrailingZeros_32(Bits[i]);
+          return i * BITWORD_SIZE + CTZ(Bits[i],32);
         else if (sizeof(BitWord) == 8)
-          return i * BITWORD_SIZE + CountTrailingZeros_64(Bits[i]);
+          return i * BITWORD_SIZE + CTZ(Bits[i],64);
         else
           assert(0 && "Unsupported!");
       }
@@ -190,9 +230,9 @@ public:
 
     if (Copy != 0) {
       if (sizeof(BitWord) == 4)
-        return WordPos * BITWORD_SIZE + CountTrailingZeros_32(Copy);
+        return WordPos * BITWORD_SIZE + CTZ(Copy,32);
       else if (sizeof(BitWord) == 8)
-        return WordPos * BITWORD_SIZE + CountTrailingZeros_64(Copy);
+        return WordPos * BITWORD_SIZE + CTZ(Copy,64);
       else
         assert(0 && "Unsupported!");
     }
@@ -201,9 +241,9 @@ public:
     for (unsigned i = WordPos+1; i < BITWORDS_PER_ELEMENT; ++i)
       if (Bits[i] != 0) {
         if (sizeof(BitWord) == 4)
-          return i * BITWORD_SIZE + CountTrailingZeros_32(Bits[i]);
+          return i * BITWORD_SIZE + CTZ(Bits[i], 32);
         else if (sizeof(BitWord) == 8)
-          return i * BITWORD_SIZE + CountTrailingZeros_64(Bits[i]);
+          return i * BITWORD_SIZE + CTZ(Bits[i], 64);
         else
           assert(0 && "Unsupported!");
       }
@@ -674,11 +714,11 @@ public:
   {
     clear();
 
-    for (ElementListConstIter it = RHS.Elements.begin(), 
-	   end = RHS.Elements.end(); it != end; ++it) {
+    for (ElementListConstIter it = RHS.Elements.begin(),
+     end = RHS.Elements.end(); it != end; ++it) {
       Elements.insert(Elements.end(),getNewElement(*it));
     }
-    
+
     return *this;
   }
 
@@ -827,8 +867,8 @@ public:
         ++Iter1;
         ++Iter2;
       } else {
-        MySparseBitVectorElement<ElementSize> *NewElement = 
-	  getNewElement(*Iter1);
+        MySparseBitVectorElement<ElementSize> *NewElement =
+    getNewElement(*Iter1);
         Elements.push_back(NewElement);
         ++Iter1;
       }
@@ -932,8 +972,8 @@ public:
 
     if (els) {
       for (ElementListIter i = Elements.begin(), e = Elements.end();
-	   i != e; ++i) { // first shift by whole BitArrays
-	i->incIndex(els);
+     i != e; ++i) { // first shift by whole BitArrays
+  i->incIndex(els);
       }
 
       off %= ElementSize; // now we'll shift by the remainder
@@ -949,78 +989,78 @@ public:
     // gcc just leaves the word alone without shifting at all); this
     // doesn't matter because we don't need lsb and msb if lsb_sz ==
     // WORDSZ, see the code below for details
-    
+
     BitWord lsb = (1 << lsb_sz) - 1;  // lsb mask
     BitWord msb = ~lsb;               // msb mask
-    
+
     int i, j;
-    
+
     BitWord buffer[2*NWORDS];
     BitWord *buff = &buffer[0];
-    
+
     memset(buff,0,BYTES_PER_ELEMENT*2);
-    
+
     ElementListIter ii = Elements.begin(), k = Elements.end();
-    
+
     while (ii != Elements.end()) {
       BitWord *bits = ii->getBits();
-      
+
       // copy bits to buff at offset; if we're shifting by whole words
       // take advantage to make the copy more efficient
       //
-      if (off % WORDSZ == 0) { 
-	memcpy(&buff[whole],bits,BYTES_PER_ELEMENT);
+      if (off % WORDSZ == 0) {
+  memcpy(&buff[whole],bits,BYTES_PER_ELEMENT);
       }
       else {
-	BitWord prev = 0; // msb bits from previous word, shifted to lsb
+  BitWord prev = 0; // msb bits from previous word, shifted to lsb
 
-	for (i = NWORDS+whole, j = NWORDS-1; i > whole; --i, --j) {
-	  buff[i] = ((bits[j] & msb) >> lsb_sz) | prev;
-	  prev = (bits[j] & lsb) << msb_sz;
-	}
+  for (i = NWORDS+whole, j = NWORDS-1; i > whole; --i, --j) {
+    buff[i] = ((bits[j] & msb) >> lsb_sz) | prev;
+    prev = (bits[j] & lsb) << msb_sz;
+  }
 
-	buff[i] |= prev;
+  buff[i] |= prev;
       }
-      
+
       //
       // if buff_1 is all 0 erase this element
       // else memcpy buff_1 to this element
       //
-      
+
       bool not_zero = memcmp(&buff[0],&MySparseBitVectorElement<ElementSize>::zero[0],BYTES_PER_ELEMENT);
-            
+
       if (not_zero) { memcpy(bits,buff,BYTES_PER_ELEMENT); }
       else { k = ii; }
-      
+
       // if buff_2 is not all 0
       //   if next element is in series
       //     memcpy buff_2 to buff_1, memset buff_2 to 0
       //   else insert new next element, init to buff_2, memset buff to 0
       // else memset buff_1 to 0
-      
+
       not_zero = memcmp(&buff[NWORDS],&MySparseBitVectorElement<ElementSize>::zero[0],BYTES_PER_ELEMENT);
-      
+
       if (not_zero) { // carry-over to next Element
-	if (ii->getNext()->index() == ii->index()+1) { // adjacent Element
-	  memcpy(buff,&buff[NWORDS],BYTES_PER_ELEMENT);
-	  memset(&buff[NWORDS],0,BYTES_PER_ELEMENT);
-	}
-	else { // no adjacent Element
-	  int idx = ii->index();
-	  ii = Elements.insert(++ii,getNewElement(idx+1));
-	  bits = ii->getBits();
-	  memcpy(bits,&buff[NWORDS],BYTES_PER_ELEMENT);
-	  memset(buff,0,BYTES_PER_ELEMENT*2);
-	}
+  if (ii->getNext()->index() == ii->index()+1) { // adjacent Element
+    memcpy(buff,&buff[NWORDS],BYTES_PER_ELEMENT);
+    memset(&buff[NWORDS],0,BYTES_PER_ELEMENT);
+  }
+  else { // no adjacent Element
+    int idx = ii->index();
+    ii = Elements.insert(++ii,getNewElement(idx+1));
+    bits = ii->getBits();
+    memcpy(bits,&buff[NWORDS],BYTES_PER_ELEMENT);
+    memset(buff,0,BYTES_PER_ELEMENT*2);
+  }
       }
       else { memset(buff,0,BYTES_PER_ELEMENT); }
-      
+
       // erase this element if necessary
       //
       if (k != Elements.end()) {
-	++ii;
-	eraseElement(k);
-	k = Elements.end();
+  ++ii;
+  eraseElement(k);
+  k = Elements.end();
       }
       else { ++ii; }
     }
@@ -1052,7 +1092,7 @@ public:
   void clear_range(unsigned bgn, unsigned cnt)
   {
     if (cnt == 0 || Elements.empty()) { return; }
-    
+
     unsigned end = bgn+cnt;
     unsigned bgn_idx = bgn/ElementSize, end_idx = (end-1)/ElementSize;
     ElementListIter it = FindLowerBound(bgn_idx), k;
@@ -1065,33 +1105,33 @@ public:
       unsigned el_end = el_bgn + ElementSize;
 
       if (el_bgn >= bgn && el_end <= end) {
-	k = it; ++it; eraseElement(k);
+  k = it; ++it; eraseElement(k);
       }
       else {
-	unsigned bgn_word, end_word;
-	BitWord bgn_msk, end_msk, *bits = it->getBits();
+  unsigned bgn_word, end_word;
+  BitWord bgn_msk, end_msk, *bits = it->getBits();
 
-	if (el_bgn <= bgn) {
-	  bgn_word = (bgn - el_bgn) / WORDSZ;
-	  bgn_msk = ~((1 << (bgn % WORDSZ)) - 1);
-	}
-	else { bgn_word = 0; bgn_msk = ~0U; }
+  if (el_bgn <= bgn) {
+    bgn_word = (bgn - el_bgn) / WORDSZ;
+    bgn_msk = ~((1 << (bgn % WORDSZ)) - 1);
+  }
+  else { bgn_word = 0; bgn_msk = ~0U; }
 
-	if (el_end <= end) { end_word = NWORDS-1; end_msk = ~0U; }
-	else {
-	  end_word = (end - el_bgn) / WORDSZ;
-	  end_msk = (1 << (end % WORDSZ)) - 1;
-	}
+  if (el_end <= end) { end_word = NWORDS-1; end_msk = ~0U; }
+  else {
+    end_word = (end - el_bgn) / WORDSZ;
+    end_msk = (1 << (end % WORDSZ)) - 1;
+  }
 
-	if (bgn_word == end_word) { bits[bgn_word] &= ~(bgn_msk & end_msk); }
-	else {
-	  bits[bgn_word] &= ~bgn_msk;
-	  bits[end_word] &= ~end_msk;
-	  for (unsigned i = bgn_word+1; i < end_word; ++i) { bits[i] = 0; }
-	}
+  if (bgn_word == end_word) { bits[bgn_word] &= ~(bgn_msk & end_msk); }
+  else {
+    bits[bgn_word] &= ~bgn_msk;
+    bits[end_word] &= ~end_msk;
+    for (unsigned i = bgn_word+1; i < end_word; ++i) { bits[i] = 0; }
+  }
 
-	if (it->empty()) { k = it; ++it; eraseElement(k); }
-	else { ++it; }
+  if (it->empty()) { k = it; ++it; eraseElement(k); }
+  else { ++it; }
       }
     }
 
@@ -1111,7 +1151,7 @@ public:
 
     for (unsigned i = bgn_idx; i <= end_idx; ++i, ++it) {
       if (it == Elements.end() || it->index() != i) {
-	it = Elements.insert(it,getNewElement(i));
+  it = Elements.insert(it,getNewElement(i));
       }
 
       unsigned el_bgn = i * ElementSize;
@@ -1121,23 +1161,23 @@ public:
       BitWord bgn_msk, end_msk, *bits = it->getBits();
 
       if (el_bgn <= bgn) {
-	bgn_word = (bgn - el_bgn) / WORDSZ;
-	bgn_msk = ~((1 << (bgn % WORDSZ)) - 1);
+  bgn_word = (bgn - el_bgn) / WORDSZ;
+  bgn_msk = ~((1 << (bgn % WORDSZ)) - 1);
       }
       else { bgn_word = 0; bgn_msk = ~0U; }
 
       if (el_end <= end) { end_word = NWORDS-1; end_msk = ~0U; }
       else {
-	end_word = (end - el_bgn) / WORDSZ;
-	end_msk = (1 << (end % WORDSZ)) - 1;
+  end_word = (end - el_bgn) / WORDSZ;
+  end_msk = (1 << (end % WORDSZ)) - 1;
       }
 
       if (bgn_word == end_word) { bits[bgn_word] |= (bgn_msk & end_msk); }
       else {
-	bits[bgn_word] |= bgn_msk;
-	bits[end_word] |= end_msk;
-	for (unsigned j = bgn_word+1; j < end_word; ++j) { bits[j] = ~0U; }
-      }      
+  bits[bgn_word] |= bgn_msk;
+  bits[end_word] |= end_msk;
+  for (unsigned j = bgn_word+1; j < end_word; ++j) { bits[j] = ~0U; }
+      }
     }
 
     CurrElementIter = it;
@@ -1147,7 +1187,7 @@ public:
 
   static unsigned stack_size() { return alloc_stack.size(); }
 };
-  
+
 template<unsigned ElementSize> std::stack<MySparseBitVectorElement<ElementSize>*> MySparseBitVector<ElementSize>::alloc_stack;
 
 
@@ -1177,13 +1217,19 @@ inline bool operator &=(MySparseBitVector<ElementSize> &LHS,
                         const MySparseBitVector<ElementSize> *RHS) {
   return LHS &= (*RHS);
 }
+template <unsigned ElementSize>
+inline bool operator<(const MySparseBitVector<ElementSize> &LHS,
+                        const MySparseBitVector<ElementSize> &RHS) {
+  return LHS < RHS;
+}
+
 
 
 // Dump a MySparseBitVector to a stream
 template <unsigned ElementSize>
-void dump(const MySparseBitVector<ElementSize> &LHS, llvm::OStream &out) {
+void dump(const MySparseBitVector<ElementSize> &LHS, llvm::raw_ostream &out) {
   out << "[ ";
-  
+
   typename MySparseBitVector<ElementSize>::iterator bi;
   for (bi = LHS.begin(); bi != LHS.end(); ++bi) {
     out << *bi << " ";
@@ -1194,4 +1240,5 @@ void dump(const MySparseBitVector<ElementSize> &LHS, llvm::OStream &out) {
 } // end llvm namespace
 
 
+#endif
 #endif

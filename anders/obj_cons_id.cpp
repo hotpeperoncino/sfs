@@ -55,24 +55,25 @@ void Anders::obj_cons_id(){
   //Find and analyze all struct types in the program.
   max_struct= min_struct;
   max_struct_sz= 0;
-  TypeSymbolTable &tst= curr_module->getTypeSymbolTable();
-  for(TypeSymbolTable::iterator it= tst.begin(), ie= tst.end(); it != ie; ++it)
-    if(const StructType* ST= dyn_cast<StructType>(it->second))
-      _analyze_struct(ST);
+
+  //  TypeSymbolTable &tst= curr_module->getTypeSymbolTable();
+  //  for(TypeSymbolTable::iterator it= tst.begin(), ie= tst.end(); it != ie; ++it)
+  //    if(const StructType* ST= dyn_cast<StructType>(it->second))
+  //      _analyze_struct(ST);
 
   //ID all functions & globals.
   for(Module::iterator it= curr_module->begin(), ie= curr_module->end();
       it != ie; ++it)
-    id_func(it);
+    id_func(&*it);
   for(Module::global_iterator it= curr_module->global_begin(),
       ie= curr_module->global_end(); it != ie; ++it)
-    id_global(it);
+    id_global(&*it);
 
   //Init globals separately
   //  (since an initializer may refer to a global below it).
   for(Module::global_iterator it= curr_module->global_begin(),
       ie= curr_module->global_end(); it != ie; ++it){
-    GlobalVariable *G= it;
+    GlobalVariable *G= &*it;
     if(G->hasInitializer()){
       proc_global_init(get_obj_node(G), G->getInitializer());
 //    }else{
@@ -88,8 +89,8 @@ void Anders::obj_cons_id(){
   //Visit all instructions (which may refer to any of the above).
   for(Module::iterator it= curr_module->begin(), ie= curr_module->end();
       it != ie; ++it){
-    if(!extinfo->is_ext(it))
-      visit_func(it);
+    if(!extinfo->is_ext(&*it))
+      visit_func(&*it);
   }
 
   //Count the node types (except the special nodes).
@@ -288,7 +289,7 @@ void Anders::id_func(Function *F){
   bool is_va= F->isVarArg();
   bool ptr_ret= isa<PointerType>(F->getReturnType());
   //The double-ptr args to main(), argv & envp, are treated as external vars.
-  if(F->getNameStr() == "main"){
+  if(F->getName() == "main"){
     //Assume that main() is never called indirectly.
     u32 i= 0;
     for(Function::arg_iterator it= F->arg_begin(), ie= F->arg_end(); it != ie;
@@ -335,7 +336,7 @@ void Anders::id_func(Function *F){
     //  and find where the last ptr arg is.
     //  If there are no ptr args at all, last_ptr will be ~0 rather than 0.
     vector<Value*> args;
-    u32 last_ptr= ~0UL, i= 0;
+    u64 last_ptr= (~(0UL)), i= 0;
     for(Function::arg_iterator it= F->arg_begin(), ie= F->arg_end(); it != ie;
         ++it, ++i){
       Value *V= it;
@@ -430,7 +431,7 @@ void Anders::processBlock(BasicBlock *BB)
       case Instruction::Call:
         id_call_insn(I);
         break;
-      case Instruction::Malloc:
+	//      case Instruction::Malloc:
       case Instruction::Alloca:
         assert(is_ptr);
         id_alloc_insn(I);
@@ -551,7 +552,7 @@ void Anders::id_call_insn(Instruction *I){
 //------------------------------------------------------------------------------
 void Anders::id_alloc_insn(Instruction *I){
   assert(I);
-  AllocationInst *AI= cast<AllocationInst>(I);
+  AllocaInst *AI= cast<AllocaInst>(I);
   u32 vnI= get_val_node(AI);
 
   DPUTS("  id_alloc_insn  ");
@@ -562,17 +563,18 @@ void Anders::id_alloc_insn(Instruction *I){
   //heap-allocated or array => weak
   bool weak= 0;
   //Find out which type of data was allocated.
-  if(MallocInst *MI= dyn_cast<MallocInst>(AI)){
-    weak= 1;
-    T= trace_alloc_type(MI);
-  }else{
+  //  if(MallocInst *MI= dyn_cast<MallocInst>(AI)){
+  //    weak= 1;
+  //    T= trace_alloc_type(MI);
+  //  }else
+     {
     T= AI->getAllocatedType();
     //An array is considered the same as 1 element.
     while(const ArrayType *AT= dyn_cast<ArrayType>(T)){
       weak= 1;
       T= AT->getElementType();
     }
-  }
+     }
 
   u32 on= next_node;
   obj_node[AI]= on;
@@ -853,7 +855,7 @@ void Anders::id_call_obj(u32 vnI, Function *F){
     if(stat2)
       DEBUG(putc('2', stderr));
     DEOL;
-    string fn= F->getNameStr();
+    string fn= F->getName();
     u32 on= 0;
     map<string, u32>::const_iterator i_srn= stat_ret_node.find(fn);
     if(i_srn != stat_ret_node.end())
@@ -1517,7 +1519,7 @@ u32 Anders::compute_gep_off(User *V){
     ConstantInt *op= dyn_cast<ConstantInt>(gi.getOperand());
     //The actual index
     u32 idx= op ? op->getZExtValue() : 0;
-    const StructType *ST= dyn_cast<StructType>(*gi);
+    const StructType *ST= gi.getStructTypeOrNull();
     //Skip non-struct (i.e. array) offsets
     if(!ST)
       continue;
@@ -1539,7 +1541,7 @@ u32 Anders::compute_gep_off(User *V){
 
 //------------------------------------------------------------------------------
 //Find the largest type that this allocation may be cast to.
-//This handles both AllocationInst's and allocating calls.
+//This handles both AllocaInst's and allocating calls.
 const Type* Anders::trace_alloc_type(Instruction *I){
   assert(I);
   //The largest type seen so far
@@ -1584,7 +1586,7 @@ u32 Anders::get_max_offset(Value *V){
   DEBUG(print_val_now(V));
   DEOL;
   const Type *T= V->getType();
-  assert(isa<PointerType>(T) && T->getContainedType(0) == Type::Int8Ty);
+  //  assert(isa<PointerType>(T) && T->getContainedType(0) == Type::getInt8Ty(llvm::getGlobalContext()));
   //If V is a CE or bitcast, the actual pointer type is its operand.
   if(ConstantExpr *E= dyn_cast<ConstantExpr>(V))
     T= E->getOperand(0)->getType();

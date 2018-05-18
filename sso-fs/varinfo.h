@@ -7,6 +7,8 @@
 #include "../common/extinfo.h"
 
 extern ExtInfo *ext;
+using llvm::errs;
+using llvm::dbgs;
 
 // variable information class used to translate Value* to u32 and to
 // distinguish between strong and weak variables
@@ -182,7 +184,7 @@ void VarInfo::translate(Module &M, CG &cg)
   // translate global variables (all globals in LLVM are pointers)
   //
   for (glob_it i = M.global_begin(), e = M.global_end(); i != e; ++i) {
-    top[i] = idx; idx++; // the top-level global pointer
+    top[&*i] = idx; idx++; // the top-level global pointer
 
     // what type does this global point to?
     //
@@ -279,7 +281,7 @@ void VarInfo::translate(Module &M, CG &cg)
       idx++;
     } 
 
-    btm[i] = start_idx; // the memory location pointed to by the global
+    btm[&*i] = start_idx; // the memory location pointed to by the global
     if (array) {
       PREC4(start_idx,false,false,true);
       weak.insert(start_idx);
@@ -293,21 +295,21 @@ void VarInfo::translate(Module &M, CG &cg)
     // we only need to translate global function pointers for
     // functions whose address is taken (including external functions)
     //
-    if (cg.adrp(i)) {
-      top[i] = idx; idx++;
-      btm[i] = idx; idx++;
+    if (cg.adrp(&*i)) {
+      top[&*i] = idx; idx++;
+      btm[&*i] = idx; idx++;
     }
     
     // we don't need to translate external or preserving functions
     //
-    if (ext->is_ext(i)) { continue; }
+    if (ext->is_ext(&*i)) { continue; }
     if (cg[&*i]->psv) { continue; }
 
     // translate this function's parameters; we treat main specially
     // because its parameters' values are coming from outside the
     // program
     //
-    if (i->getNameStr() == "main") {
+    if ((&*i)->getName() == "main") {
       //
       // main's pointer-valued parameters (argv and envp) each
       // need two bottom values since they are double pointers
@@ -343,8 +345,8 @@ void VarInfo::translate(Module &M, CG &cg)
 
     // translate all pointer-related instructions in this function
     //
-    for (inst_iterator j = inst_begin(i), e = inst_end(i); j != e; ++j) {
-      if (isa<PointerType>(j->getType())) {
+    for (inst_iterator j = inst_begin(&*i), e = inst_end(&*i); j != e; ++j) {
+      if (isa<PointerType>((&*j)->getType())) {
         //
         // an instruction with pointer type; note that we don't care
         // about CallInst, ReturnInst, and StoreInst that manipulate
@@ -356,15 +358,15 @@ void VarInfo::translate(Module &M, CG &cg)
 
 	// allocations require indices for the returned memory locations
 	//
-	if (AllocationInst *a = dyn_cast<AllocationInst>(&*j)) {
-	  bool wk_heap = isa<MallocInst>(a);
+	if (AllocaInst *a = dyn_cast<AllocaInst>(&*j)) {
+	  bool wk_heap = isa<AllocaInst>(a);
           bool wk_array = false;
 
 	  const Type *typ = a->getAllocatedType();
 
 	  // for malloc try to figure out what type it will be cast to
           //
-          if (isa<MallocInst>(a)) { typ = findPossibleType(&*j); }
+          if (isa<AllocaInst>(a)) { typ = findPossibleType(&*j); }
 	  
 	  // we treat an array of structs as a single struct with weak
 	  // fields, since we ignore array offsets during the analysis
@@ -485,8 +487,8 @@ void VarInfo::translate(Module &M, CG &cg)
 	      }
             }
             else if (ext->has_static(c)) { // function returning statics
-	      if (has_stat.count(c->getNameStr())) {
-                btm[&*j] = has_stat[c->getNameStr()];
+	      if (has_stat.count(c->getName())) {
+                btm[&*j] = has_stat[c->getName()];
               }
               else {
 		u32 start_idx = idx;
@@ -526,7 +528,7 @@ void VarInfo::translate(Module &M, CG &cg)
 		}
 		
 		btm[&*j] = start_idx;
-		has_stat[c->getNameStr()] = start_idx;
+		has_stat[c->getName()] = start_idx;
               }
 	    }
           }
@@ -650,7 +652,7 @@ void VarInfo::set_vso(bitmap &off)
 
 void VarInfo::print()
 {
-  cout << "TOP-LEVEL VARIABLES" << endl;
+  outs() << "TOP-LEVEL VARIABLES" << "\n";
 
   for (v2u_it i = top.begin(), e = top.end(); i != e; ++i) {
     string s;
@@ -661,30 +663,30 @@ void VarInfo::print()
     }
     else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(i->first)) {
       Value *g = strip(CE->getOperand(0));
-      assert(!ART(g) && isa<GlobalVariable>(g) && g->getNameStr() != "");
-      s = "GEP#" + g->getNameStr();
+      assert(!ART(g) && isa<GlobalVariable>(g) && g->getName() != "");
+      s = "GEP#" + g->getName().str();
     }
     else if (Instruction *ins = dyn_cast<Instruction>(i->first)) {
-      //FIX: assert(ins->getNameStr() != "");
+      //FIX: assert(ins->getName() != "");
       Function *F = ins->getParent()->getParent();
-      s = F->getNameStr() + "#" + ins->getNameStr();
+      s = F->getName().str() + "#" + ins->getName().str();
 
-      if (ins->getNameStr() == "") { s += "unnamed"; }//!!
+      if (ins->getName() == "") { s += "unnamed"; }//!!
     }
     else if (Argument *a = dyn_cast<Argument>(i->first)) {
-      assert(a->getNameStr() != "");
+      assert(a->getName() != "");
       Function *F = a->getParent();
-      s = F->getNameStr() + "#" + a->getNameStr();
+      s = F->getName().str() + "#" + a->getName().str();
     }
     else {
-      assert(isa<GlobalValue>(i->first) && i->first->getNameStr() != "");
-      s = i->first->getNameStr();
+      assert(isa<GlobalValue>(i->first) && i->first->getName() != "");
+      s = i->first->getName().str();
     }
 
-    cout << i->second << " -> " << s << endl;
+    outs() << i->second << " -> " << s << "\n";
   }
 
-  cout << endl << "ADDRESS-TAKEN VARIABLES" << endl;
+  outs() << "\n" << "ADDRESS-TAKEN VARIABLES" << "\n";
 
   for (v2u_it i = btm.begin(), e = btm.end(); i != e; ++i) {
     string s;
@@ -695,30 +697,30 @@ void VarInfo::print()
       else                        { assert(0); }
     }
     else if (Instruction *ins = dyn_cast<Instruction>(i->first)) {
-      //FIX: assert(ins->getNameStr() != "");
+      //FIX: assert(ins->getName() != "");
       Function *F = ins->getParent()->getParent();
-      s = F->getNameStr() + "#" + ins->getNameStr();
+      s = F->getName().str() + "#" + ins->getName().str();
 
-      if (ins->getNameStr() == "") { s += "unnamed"; }//!!
+      if (ins->getName() == "") { s += "unnamed"; }//!!
     }
     else if (Argument *a = dyn_cast<Argument>(i->first)) {
-      assert(a->getNameStr() != "");
+      assert(a->getName().str() != "");
       Function *F = a->getParent();
-      s = F->getNameStr() + "#" + a->getNameStr();
+      s = F->getName().str() + "#" + a->getName().str();
     }
     else {
-      assert(isa<GlobalValue>(i->first) && i->first->getNameStr() != "");
-      s = i->first->getNameStr();
+      assert(isa<GlobalValue>(i->first) && i->first->getName() != "");
+      s = i->first->getName();
     }
     
-    cout << i->second << " -> " << s << endl;
+    outs() << i->second << " -> " << s << "\n";
 
     if (nsf.count(i->second)) {
       for (u32 j = 1, e = nsf[i->second]; j < e; ++j) {
 	assert(inv[i->second+j] == FIELD);
 
 	ostringstream o; o << j;
-	cout << i->second+j << " -> " << s + "#field" + o.str() << endl;
+	outs() << i->second+j << " -> " << s + "#field" + o.str() << "\n";
       }
     }
   }
@@ -736,7 +738,7 @@ void VarInfo::stats()
     }
   }
   
-  cout << "number of top-level ptr eq classes == " << eq.size() << endl;
+  outs() << "number of top-level ptr eq classes == " << eq.size() << "\n";
 }
 
 // strip off constant expressions encapsulating the real Value, except
@@ -782,7 +784,7 @@ Value* VarInfo::strip(Value *v)
 	     cast<ConstantExpr>(t)->getOpcode() == Instruction::GetElementPtr);
     }
 
-    if (v != old) { cerr << "!!!!" << endl; }
+    if (v != old) { errs() << "!!!!" << "\n"; }
   }
 
   return v;
@@ -814,6 +816,8 @@ u32 VarInfo::find(u32 x)
 //
 void VarInfo::processStructs(Module& M)
 {
+  abort();
+#if 0
   u32 sz = 0;
   TypeSymbolTable& tst = M.getTypeSymbolTable();
 
@@ -837,6 +841,7 @@ void VarInfo::processStructs(Module& M)
     struct_off[largest_struct].push_back(0);
     struct_off[largest_struct].push_back(1);
   }
+#endif
 }
 
 u32 VarInfo::processStructType(const StructType* typ, vector<u32>& info, 
@@ -932,7 +937,8 @@ const Type* VarInfo::findPossibleType(Instruction *inst)
     }
   }
 
-  if (!cast && (r->isInteger() || r == Type::VoidTy)) { r = largest_struct; }
+  abort();
+  //  if (!cast && (r->isInteger() || r == Type::VoidTy)) { r = largest_struct; }
 
   return r;
 }

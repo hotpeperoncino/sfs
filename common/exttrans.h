@@ -4,7 +4,9 @@
 #include "common.h"
 #include "extinfo.h"
 #include "ptrinst.h"
-#include "varinfo.h"
+#include "../sso-fs/varinfo.h"
+using llvm::errs;
+using llvm::dbgs;
 
 extern ExtInfo *ext;
 
@@ -41,36 +43,36 @@ PtrInst ExtTrans::translate(CallInst *ci, Function *F, VarInfo *vi)
 
   switch (ext->get_type(F)) {
   case EFT_L_A0:
-    if (cs.arg_size() < 1) { cerr << "!!" << endl; break; }
+    if (cs.arg_size() < 1) { errs() << "!!" << "\n"; break; }
     arg = cs.getArgument(0);
     // lack of break deliberate
   case EFT_L_A1:
     if (!arg) { 
-      if (cs.arg_size() < 2) { cerr << "!!" << endl; break; }
+      if (cs.arg_size() < 2) { errs() << "!!" << "\n"; break; }
       arg = cs.getArgument(1);
     }
     // lack of break deliberate
   case EFT_L_A2:
     if (!arg) { 
-      if (cs.arg_size() < 3) { cerr << "!!" << endl; break; }
+      if (cs.arg_size() < 3) { errs() << "!!" << "\n"; break; }
       arg = cs.getArgument(2);
     }
     // lack of break deliberate
   case EFT_L_A8:
     if (!arg) { 
-      if (cs.arg_size() < 9) { cerr << "!!" << endl; break; }
+      if (cs.arg_size() < 9) { errs() << "!!" << "\n"; break; }
       arg = cs.getArgument(8);
     }
     if (!isa<ConstantPointerNull>(arg) && !isa<UndefValue>(arg) &&
 	isa<PointerType>(arg->getType())) {
       pi.lhs = vi->getTrans(ci);
-      if (!pi.lhs) { cerr << "!!" << endl; return pi; }
+      if (!pi.lhs) { errs() << "!!" << "\n"; return pi; }
       pi.op = COPY;
       pi.rhs.push_back((*vi)[arg]);
     }
     break;
   case EFT_L_A0__A0R_A1R:
-    if (cs.arg_size() < 2) { cerr << "!!" << endl; break; }
+    if (cs.arg_size() < 2) { errs() << "!!" << "\n"; break; }
     dst = cs.getArgument(0);
     src = cs.getArgument(1);
     
@@ -88,12 +90,12 @@ PtrInst ExtTrans::translate(CallInst *ci, Function *F, VarInfo *vi)
       pi.off = (off_1 < off_2) ? off_1 : off_2;
 
       if (isa<PointerType>(ci->getType())) {
-	cerr << "EFT_L_A0__A0R_A1R: ret value ignored" << endl;
+	errs() << "EFT_L_A0__A0R_A1R: ret value ignored" << "\n";
       }
     }
     break;
   case EFT_A3R_A1R_NS:
-    if (cs.arg_size() < 4) { cerr << "!!" << endl; break; }
+    if (cs.arg_size() < 4) { errs() << "!!" << "\n"; break; }
     dst = cs.getArgument(3);
     src = cs.getArgument(1);
     
@@ -106,7 +108,7 @@ PtrInst ExtTrans::translate(CallInst *ci, Function *F, VarInfo *vi)
     }
     break;
   case EFT_A1R_A0R:
-    if (cs.arg_size() < 2) { cerr << "!!" << endl; break; }
+    if (cs.arg_size() < 2) { errs() << "!!" << "\n"; break; }
     dst = cs.getArgument(1);
     src = cs.getArgument(0);
     
@@ -125,20 +127,20 @@ PtrInst ExtTrans::translate(CallInst *ci, Function *F, VarInfo *vi)
     }
     break;
   case EFT_A1R_A0:
-    if (cs.arg_size() < 2) { cerr << "!!" << endl; break; }
+    if (cs.arg_size() < 2) { errs() << "!!" << "\n"; break; }
     dst = cs.getArgument(1);
     src = cs.getArgument(0);
     // lack of break deliberate
   case EFT_A2R_A1:
     if (!dst && !src) {
-      if (cs.arg_size() < 3) { cerr << "!!" << endl; break; }
+      if (cs.arg_size() < 3) { errs() << "!!" << "\n"; break; }
       dst = cs.getArgument(2);
       src = cs.getArgument(1);
     }
     // lack of break deliberate
   case EFT_A4R_A1:
     if (!dst && !src) {
-      if (cs.arg_size() < 5) { cerr << "!!" << endl; break; }
+      if (cs.arg_size() < 5) { errs() << "!!" << "\n"; break; }
       dst = cs.getArgument(4);
       src = cs.getArgument(1);
     }
@@ -151,7 +153,7 @@ PtrInst ExtTrans::translate(CallInst *ci, Function *F, VarInfo *vi)
     }
     break;
   case EFT_L_A0__A2R_A0:
-    if (cs.arg_size() < 3) { cerr << "!!" << endl; break; }
+    if (cs.arg_size() < 3) { errs() << "!!" << "\n"; break; }
     dst = cs.getArgument(2);
     src = cs.getArgument(0);
 
@@ -162,7 +164,7 @@ PtrInst ExtTrans::translate(CallInst *ci, Function *F, VarInfo *vi)
       pi.rhs.push_back((*vi)[src]);
 
       if (isa<PointerType>(ci->getType())) {
-	cerr << "EFT_L_A0__A2R_A0: ret value ignored" << endl;
+	errs() << "EFT_L_A0__A2R_A0: ret value ignored" << "\n";
       }
     }
     break;
@@ -171,16 +173,16 @@ PtrInst ExtTrans::translate(CallInst *ci, Function *F, VarInfo *vi)
   case EFT_A2R_NEW:
   case EFT_A4R_NEW:
   case EFT_A11R_NEW:
-    cerr << "EFT_*_NEW: not implemented" << endl;
+    errs() << "EFT_*_NEW: not implemented" << "\n";
     break;
   case EFT_REALLOC:
-    if (cs.arg_size() < 1) { cerr << "!!" << endl; break; }
+    if (cs.arg_size() < 1) { errs() << "!!" << "\n"; break; }
     if (!isa<ConstantPointerNull>(cs.getArgument(0)) &&
 	isa<PointerType>(cs.getArgument(0)->getType())) {
       arg = cs.getArgument(0);
       if (isa<UndefValue>(arg)) { break; }
       pi.lhs = vi->getTrans(ci);
-      if (!pi.lhs) { cerr << "!!" << endl; return pi; }
+      if (!pi.lhs) { errs() << "!!" << "\n"; return pi; }
       pi.op = COPY;
       pi.rhs.push_back((*vi)[arg]);
       break;
@@ -190,9 +192,9 @@ PtrInst ExtTrans::translate(CallInst *ci, Function *F, VarInfo *vi)
   case EFT_NOSTRUCT_ALLOC:
   case EFT_STAT:
   case EFT_STAT2:
-    if (!isa<PointerType>(ci->getType())) { cerr << "!!" << endl; break; }
+    if (!isa<PointerType>(ci->getType())) { errs() << "!!" << "\n"; break; }
     pi.lhs = vi->getTrans(ci);
-    if (!pi.lhs) { cerr << "!!" << endl; return pi; }
+    if (!pi.lhs) { errs()   << "!!" << "\n"; return pi; }
     pi.op = ALLOC;
     pi.rhs.push_back((*vi)(ci));
     break;

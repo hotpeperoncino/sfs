@@ -70,7 +70,7 @@ private:
   //  (hash_map and map are much slower).
   StringMap<extf_t> info;
   //A cache of is_ext results for all Function*'s (hash_map is fastest).
-  hash_map<const Function*, bool> isext_cache;
+  map<const Function*, bool> isext_cache;
 
   void init();                          //fill in the map (see extinfo.cpp)
 
@@ -84,7 +84,7 @@ public:
   //Return the extf_t of (F).
   extf_t get_type(const Function *F) const{
     assert(F);
-    StringMap<extf_t>::const_iterator it= info.find(F->getNameStart());
+    StringMap<extf_t>::const_iterator it= info.find(F->getName());
     if(it == info.end())
       return EFT_OTHER;
     else
@@ -119,7 +119,7 @@ public:
   bool is_ext(const Function *F){
     assert(F);
     //Check the cache first; everything below is slower.
-    hash_map<const Function*, bool>::iterator i_iec= isext_cache.find(F);
+    std::map<const Function*, bool>::iterator i_iec= isext_cache.find(F);
     if(i_iec != isext_cache.end())
       return i_iec->second;
 

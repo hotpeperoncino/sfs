@@ -58,23 +58,27 @@
 
 #define MAX_U32 (u32)-1
 
-#include "llvm/Pass.h"
-#include "llvm/Module.h"
-#include "llvm/Constants.h"
-#include "llvm/BasicBlock.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Instructions.h"
-#include "llvm/TypeSymbolTable.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/InstIterator.h"
-#include "llvm/Support/GetElementPtrTypeIterator.h"
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/StringMap.h"
-
-//#include "llvm/ADT/SparseBitVector.h"
+#include <llvm/Pass.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Instructions.h>
+// #include <llvm/IR/TypeSymbolTable.h>
+#include <llvm/IR/CFG.h>
+#include <llvm/IR/DebugInfo.h>
+// #include <llvm/Support/CallSite.h>
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/GetElementPtrTypeIterator.h>
+#include <llvm/Analysis/CallGraph.h>
+#include <llvm/Analysis/AliasAnalysis.h>
+#include <llvm/ADT/Hashing.h>
+#include <llvm/ADT/DenseMap.h>
+#include <llvm/ADT/DenseSet.h>
+#include <llvm/ADT/StringMap.h>
+#include <llvm/ADT/SparseBitVector.h>
 #include "bitmap.h"
 
 #include <set>
@@ -89,8 +93,8 @@
 #include <sstream>
 #include <iomanip>
 #include <fstream>
-#include <ext/hash_set>
-#include <ext/hash_map>
+//#include <ext/hash_set>
+//#include <ext/hash_map>
 
 #include "fdd.h"
 #include "bvec.h"
@@ -112,7 +116,7 @@ typedef Function::arg_iterator          prm_it;
 typedef BasicBlock::iterator            ibb_it;
 typedef Value::use_iterator             use_it;
 typedef CallSite::arg_iterator          arg_it;
-typedef TypeSymbolTable::iterator       type_it;
+//typedef TypeSymbolTable::iterator       type_it;
 typedef StructType::element_iterator    struct_it;
 typedef gep_type_iterator               gept_it;
 typedef User::op_iterator               op_it;
@@ -135,25 +139,33 @@ typedef map<Function*,u32>::iterator    f2u_it;
 typedef map<u32,u32>::reverse_iterator  u2u_rit;
 typedef map<Instruction*,u32>::iterator ins2u_it;
 
+using llvm::errs;
+using llvm::dbgs;
+
 // for hashing pointers and bitmaps
 //
-namespace __gnu_cxx
+#if 0
+namespace std
 {
   template<class T> struct hash<T*> {
     size_t operator()(const T* p) const { return hash<u32>()((u32)p); }};
   template<> struct hash<bitmap> {
     size_t operator()(const bitmap& s) const { return s.getHashValue(); }};
 }
-
+#endif
 // get memory usage from the /proc filesystem
 //
+#if 0
 #define MEM_USAGE() {                                    \
     string line; ifstream in("/proc/self/status");       \
     for (u32 i = 0; i < 16; i++) { getline(in,line); }   \
     istringstream inl(line); string x; u32 mem;          \
-    inl >> x >> mem; cerr << "memory usage  = " <<       \
+    inl >> x >> mem; errs() << "memory usage  = " <<       \
     (double)mem/1024 << "M" << endl << endl; in.close(); \
 }
+#else
+#define MEM_USAGE() 
+#endif
 
 // convenience wrapper around std::find
 //
@@ -172,5 +184,10 @@ bool hasPtr(const Type *t);
 // get the callee of a CallInst (0 if indirect call)
 //
 Function* calledFunction(CallInst *ci);
+
+using llvm::errs;
+using llvm::dbgs;
+
+
 
 #endif // _COMMON_H

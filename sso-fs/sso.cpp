@@ -48,6 +48,9 @@
 #include "varinfo.h"
 #include PTRINFO_H
 
+using llvm::errs;
+using llvm::dbgs;
+
 // for PtrInfo implemented with bitmaps use forward and backward
 // filtered binding, but not for PtrInfo implemented with BDDs
 //
@@ -116,7 +119,7 @@ namespace
   public:
     
     static char ID;
-    SSaa() : ModulePass((intptr_t)&ID) {}
+    SSaa() : ModulePass(ID) {}
 
     bool runOnModule(Module&);
     void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -171,7 +174,7 @@ namespace
 
 bool SSaa::runOnModule(Module &M)
 { 
-  cout << ">> USING SSO-FS <<" << endl;
+  dbgs() << ">> USING SSO-FS <<" << "\n";
   CPU_PROFILE_START("cpu.setup");
 
   //// INITIALIZATION AND PRE-PROCESSING
@@ -313,12 +316,12 @@ void SSaa::initGlobals(Module &M, Function *root)
   // pointer to its corresponding object
   //
   for (glob_it i = M.global_begin(), e = M.global_end(); i != e; ++i) {
-    ti.alloc(vi[i],vi(i));
+    ti.alloc(vi[&*i],vi(&*i));
 
     // if the global is a pointer or contains a pointer then put it
     // in glob_roots (for filtered binding)
     //
-    if (hasPtr(i->getType()->getContainedType(0))) { glob_roots.set(vi[i]); }
+    if (hasPtr((&*i)->getType()->getContainedType(0))) { glob_roots.set(vi[&*i]); }
   }
 
   //
@@ -334,8 +337,8 @@ void SSaa::initGlobals(Module &M, Function *root)
   // process the global initializers
   //
   for (glob_it i = M.global_begin(), e = M.global_end(); i != e; ++i) {
-    if (i->hasInitializer() && r->in->null(vi(i))) { // internal global
-      processGlobalInit(r, vi(i), i->getInitializer());
+    if (i->hasInitializer() && r->in->null(vi(&*i))) { // internal global
+      processGlobalInit(r, vi(&*i), i->getInitializer());
     }
     // we assume external globals are initialized to null
   }
@@ -785,11 +788,11 @@ bool SSaa::backwardBind(DFnode *n, DFnode *clr, u32 ret)
 void SSaa::printTop()
 {
   for (u32 i = Data::num_btm; i < Data::num_vars; ++i) {
-    cout << i << " :";
+    dbgs() << i << " :";
     for (PtrInfo::ptr_it j = ti.begin(vi[i]), e = ti.end(vi[i]); j != e; ++j) {
-      cout << " " << *j;
+      dbgs() << " " << *j;
     }
-    cout << endl;
+    dbgs() << "\n";
   }
 }
 
@@ -799,22 +802,22 @@ void SSaa::listExtCalls(Module &M)
   set<Function*> decl, intr;
 
   for (fmod_it i = M.begin(), e = M.end(); i != e; ++i) {
-    if (i->isDeclaration()) { decl.insert(i); }
-    else if (i->isIntrinsic()) { intr.insert(i); }
+    if (i->isDeclaration()) { decl.insert(&*i); }
+    else if (i->isIntrinsic()) { intr.insert(&*i); }
   }
 
   for (glob_it i = M.global_begin(), e = M.global_end(); i != e; ++i) {
-    if (!i->hasInitializer()) { glob.insert(i); }
+    if (!i->hasInitializer()) { glob.insert(&*i); }
   }
 
-  cout << "number of intrinsic functions == " << intr.size() << endl
-       << " number of declared functions == " << decl.size() << endl
-       << "   number of declared globals == " << glob.size() << endl;
+  dbgs() << "number of intrinsic functions == " << intr.size() << "\n"
+       << " number of declared functions == " << decl.size() << "\n"
+       << "   number of declared globals == " << glob.size() << "\n";
 
   if (!intr.empty()) {
-    cout << endl << "INTRINSIC" << endl << endl;
+    dbgs() << "\n" << "INTRINSIC" << "\n" << "\n";
     for (funs_it i = intr.begin(), e = intr.end(); i != e; ++i) {
-      if (isa<PointerType>((*i)->getReturnType())) { cout << "(*) "; }
+      if (isa<PointerType>((*i)->getReturnType())) { dbgs() << "(*) "; }
       else { 
         bool pts = false;
 
@@ -822,18 +825,18 @@ void SSaa::listExtCalls(Module &M)
           if (isa<PointerType>(j->getType())) { pts = true; break; }
         }
 
-        if (!pts) { cout << "(-) "; }
-        else { cout << "    "; }
+        if (!pts) { dbgs() << "(-) "; }
+        else { dbgs() << "    "; }
       }
 
-      cout << (*i)->getNameStr() << endl;
+      dbgs() << (*i)->getName() << "\n";
     }
   }
 
   if (!decl.empty()) {
-    cout << endl << "DECLARED FUNCTIONS" << endl << endl;
+    dbgs() << "\n" << "DECLARED FUNCTIONS" << "\n" << "\n";
     for (funs_it i = decl.begin(), e = decl.end(); i != e; ++i) {
-      if (isa<PointerType>((*i)->getReturnType())) { cout << "(*) "; }
+      if (isa<PointerType>((*i)->getReturnType())) { dbgs() << "(*) "; }
       else { 
         bool pts = false;
 	
@@ -841,21 +844,21 @@ void SSaa::listExtCalls(Module &M)
           if (isa<PointerType>(j->getType())) { pts = true; break; }
         }
 
-        if (!pts) { cout << "(-) "; }
-        else { cout << "    "; }
+        if (!pts) { dbgs() << "(-) "; }
+        else { dbgs() << "    "; }
       }
 
-      cout << (*i)->getNameStr() << endl;
+      dbgs() << (*i)->getName() << "\n";
     }
   }
 
   if (!glob.empty()) {
-    cout << endl << "DECLARED GLOBALS" << endl << endl;
+    dbgs() << "\n" << "DECLARED GLOBALS" << "\n" << "\n";
     for (gvs_it i = glob.begin(), e = glob.end(); i != e; ++i) {
-      if (hasPtr((*i)->getType()->getContainedType(0))) { cout << "(*) "; }
-      else { cout << "    "; }
+      if (hasPtr((*i)->getType()->getContainedType(0))) { dbgs() << "(*) "; }
+      else { dbgs() << "    "; }
 
-      cout << (*i)->getNameStr() << endl;
+      dbgs() << (*i)->getName() << "\n" ;
     }
   }
 }

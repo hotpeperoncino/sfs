@@ -11,6 +11,8 @@
 #include PTRINFO_H
 
 extern ExtInfo *ext;
+using llvm::errs;
+using llvm::dbgs;
 
 // a node of the DFG
 //
@@ -54,76 +56,76 @@ struct DFnode
   void print()
   {
     CallInst *ci = 0;
-    cout << "[" << topo << "] ";
+    dbgs() << "[" << topo << "] ";
 
     switch (pi.op) {
     case NOOP:
-      if (!pi.inst) { cout << "NOOP " << this << endl; }
-      else          { cout << "PRM "  << this << endl; }
+      if (!pi.inst) { dbgs() << "NOOP " << this << "\n"; }
+      else          { dbgs() << "PRM "  << this << "\n"; }
 
       break;
     case CALL:
       ci = cast<CallInst>(pi.inst);
 
-      if (pi.lhs) { cout << pi.lhs << " = "; }
-      cout << calledFunction(ci)->getNameStr() << " ( ";
+      if (pi.lhs) { dbgs() << pi.lhs << " = "; }
+      dbgs() << calledFunction(ci)->getName() << " ( ";
 
       for (uv_it i = pi.rhs.begin(), e = pi.rhs.end(); i != e; ++i) {
-	cout << *i << " ";
+	dbgs() << *i << " ";
       }
-      cout << ")" << endl;
+      dbgs() << ")" << "\n";
 
       break;
     case ICALL:
       ci = cast<CallInst>(pi.inst);
 
-      if (pi.lhs) { cout << pi.lhs << " = "; }
-      cout << "(*" << (*vi)[ci->getCalledValue()] << ") ( ";
+      if (pi.lhs) { dbgs() << pi.lhs << " = "; }
+      dbgs() << "(*" << (*vi)[ci->getCalledValue()] << ") ( ";
 
       for (uv_it i = pi.rhs.begin(), e = pi.rhs.end(); i != e; ++i) {
-	cout << *i << " ";
+	dbgs() << *i << " ";
       }
-      cout << ")" << endl;
+      dbgs() << ")" << "\n";
 
       break;
     case RET:
-      cout << "RET ";
-      if (!pi.rhs.empty()) { cout << pi.rhs[0] << endl; }
-      else { cout << "null" << endl; }
+      dbgs() << "RET ";
+      if (!pi.rhs.empty()) { dbgs() << pi.rhs[0] << "\n"; }
+      else { dbgs() << "null" << "\n"; }
 
       break;
     case COPY:
-      cout << pi.lhs << " =";
+      dbgs() << pi.lhs << " =";
       for (uv_it i = pi.rhs.begin(), e = pi.rhs.end(); i != e; ++i) {
-	cout << " " << *i;
+	dbgs() << " " << *i;
       }
-      cout << endl;
+      dbgs() << "\n";
 
       break;
     case ALLOC:
       assert(!pi.rhs.empty());
-      cout << pi.lhs << " = &" << pi.rhs[0] << endl;
+      dbgs() << pi.lhs << " = &" << pi.rhs[0] << "\n";
 
       break;
     case LOAD:
       assert(!pi.rhs.empty());
-      cout << pi.lhs << " = *" << pi.rhs[0] << endl;
+      dbgs() << pi.lhs << " = *" << pi.rhs[0] << "\n";
 
       break;
     case STORE:
       assert(!pi.rhs.empty());
-      cout << "*" << pi.lhs << " = " << pi.rhs[0] << endl;
+      dbgs() << "*" << pi.lhs << " = " << pi.rhs[0] << "\n";
 
       break;
     case STORE2:
       assert(!pi.rhs.empty());
-      cout << "*" << pi.lhs << " = *" << pi.rhs[0] 
-	   << " + " << pi.off << endl;
+      dbgs() << "*" << pi.lhs << " = *" << pi.rhs[0] 
+	   << " + " << pi.off << "\n";
 
       break;
     case GEP:
       assert(!pi.rhs.empty());
-      cout << pi.lhs << " = GEP " << pi.rhs[0] << " " << pi.off << endl;
+      dbgs() << pi.lhs << " = GEP " << pi.rhs[0] << " " << pi.off << "\n";
 
       break;
     default: assert(0 && "unknown opcode");
@@ -300,7 +302,7 @@ private:
   // for detecting local equivalence
   //
   map<DFnode*,bitmap> lbls;
-  hash_map<bitmap,PtrInfo*> ptrs;
+  std::map<bitmap,PtrInfo*> ptrs;
 
   //// METHODS
 
@@ -339,7 +341,7 @@ void DFG::construct(Module &M, CG& cg)
   // give each non-preserving internal function an entry in info
   //
   for (fmod_it i = M.begin(), e = M.end(); i != e; ++i) {
-    if (!ext->is_ext(i) && !cg[i]->psv) { info[i] = new DFinfo; }
+    if (!ext->is_ext(&*i) && !cg[&*i]->psv) { info[&*i] = new DFinfo; }
   }
 
   // construct a DFG for each function that meets the above citeria
@@ -348,7 +350,7 @@ void DFG::construct(Module &M, CG& cg)
   // already been created)
   //
   for (dfg_it i = info.begin(); i != info.end(); ++i) {
-    functionDFG(i->first,cg);
+    functionDFG((&*i)->first,cg);
   }
 
   // compute the offsets used by the constant GEP expressions in order
@@ -414,9 +416,9 @@ u32 DFG::compute_gep_off(User *gep)
   u32 off = 0;
 
   for (gept_it i = gep_type_begin(*gep), e = gep_type_end(*gep); i != e; ++i) {
-    if (isa<StructType>(*i)) {
+    if (isa<StructType>((i.getStructType()))) {
       u32 idx = cast<ConstantInt>(i.getOperand())->getZExtValue();
-      vector<u32>& struct_offs = vi->structOffsets(cast<StructType>(*i));
+      vector<u32>& struct_offs = vi->structOffsets(cast<StructType>(i.getStructType()));
 
       assert(idx < struct_offs.size());
       off += struct_offs[idx];
@@ -462,7 +464,7 @@ void DFG::getDFnodes(DFinfo *di, vector<DFnode*>& nodes)
 
 // for hashing PtrInfos
 //
-namespace __gnu_cxx {
+namespace std {
   template<> struct hash<PtrInfo> {
     size_t operator()(const PtrInfo& s) const { return s.getHash(); }};
 }
@@ -472,7 +474,7 @@ void DFG::compute_eq()
   u32 num_empty = 0;
   set<PtrInfo*> seen;
   vector<DFnode*> nodes;
-  hash_map<PtrInfo,bool> eq;
+  std::map<PtrInfo,bool> eq;
   
   for (dfg_it i = info.begin(), e = info.end(); i != e; ++i) {
     getDFnodes(i->second,nodes);
@@ -497,8 +499,8 @@ void DFG::compute_eq()
     nodes.clear();
   }
 
-  cout << "   number of local-pts eq == " << eq.size() << endl
-       << "number of empty local-pts == " << num_empty << endl;
+  dbgs() << "   number of local-pts eq == " << eq.size() << "\n"
+       << "number of empty local-pts == " << num_empty << "\n";
 }
 
 u32 DFG::compute_sz()
@@ -541,8 +543,8 @@ void DFG::stats(Module &M)
     num_sin = 0, num_prm = 0;
   
   for (fmod_it i = M.begin(); i != M.end(); ++i) {
-    if (ext->is_ext(i)) { continue; }
-    for (inst_iterator j = inst_begin(i), e = inst_end(i); j != e; ++j) {
+    if (ext->is_ext(&*i)) { continue; }
+    for (inst_iterator j = inst_begin(&*i), e = inst_end(&*i); j != e; ++j) {
       num_inst++;
     }
   }
@@ -582,44 +584,45 @@ void DFG::stats(Module &M)
     nodes.clear();
   }
 
-  cout << "    functions == " << info.size() << endl
-       << " instructions == " << num_inst << endl
-       << "pointer insts == " << num_mn << endl
-       << "  --   CALL == " << num_call << endl
-       << "  --  ICALL == " << num_icall << endl
-       << "  --    RET == " << num_ret << endl
-       << "  --  ALLOC == " << num_alloc << endl
-       << "  --   LOAD == " << num_load << endl
-       << "  --  STORE == " << num_store << endl
-       << "  -- STORE2 == " << num_store2 << endl
+  dbgs() << "    functions == " << info.size() << "\n"
+       << " instructions == " << num_inst << "\n"
+       << "pointer insts == " << num_mn << "\n"
+       << "  --   CALL == " << num_call << "\n"
+       << "  --  ICALL == " << num_icall << "\n"
+       << "  --    RET == " << num_ret << "\n"
+       << "  --  ALLOC == " << num_alloc << "\n"
+       << "  --   LOAD == " << num_load << "\n"
+       << "  --  STORE == " << num_store << "\n"
+       << "  -- STORE2 == " << num_store2 << "\n"
        << "  --    GEP == " << num_gep
-       << " (" << gep_off.count() << " offsets)" << endl
+       << " (" << gep_off.count() << " offsets)" << "\n"
        << "  --   COPY == " << num_copy
-    STT(<< " [singletons == " << num_sin << "]" << endl) << endl << endl;
+    STT(<< " [singletons == " << num_sin << "]" << "\n") << "\n" << "\n";
 
-  cout << "      m-nodes == " << num_mn << endl
+  dbgs() << "      m-nodes == " << num_mn << "\n"
        << "      p-nodes == " << num_pn 
-       << " [params == " << num_prm << "]" << endl
+       << " [params == " << num_prm << "]" << "\n"
        << "  total nodes == " << num_mn+num_pn 
-       << " (- params == " << num_mn+num_pn-num_prm << ")" << endl << endl;
+       << " (- params == " << num_mn+num_pn-num_prm << ")" << "\n" << "\n";
 
-  cout << "  num PtrInfo == " << num_pts.size() << endl << endl;
+  dbgs() << "  num PtrInfo == " << num_pts.size() << "\n" << "\n";
 }
 
 void DFG::print(const string& file)
 {
   deque<DFnode*> q;
   set<DFnode*> vst;
-  ofstream out(file.c_str(),ios_base::trunc);
+  std::string s("");
+  llvm::raw_string_ostream out(s);
 
-  out.setf(ios::dec);
+  //  out.setf(ios::dec);
 
   // alphabetize output of functions
   //
   map<string,Function*> alpha;
   for (dfg_it i = info.begin(), e = info.end(); i != e; ++i) {
-    assert(!alpha.count(i->first->getNameStr()));
-    alpha[i->first->getNameStr()] = i->first;
+    assert(!alpha.count(i->first->getName()));
+    alpha[i->first->getName()] = i->first;
   }
 
   for (map<string,Function*>::iterator i = alpha.begin(), e = alpha.end();
@@ -637,9 +640,9 @@ void DFG::print(const string& file)
       q.push_back(*k);
     }
 
-    out << "digraph FUN_" << i->first << " {" << endl
+    out << "digraph FUN_" << i->first << " {" << "\n"
         << "\tgraph [ label=\"" << i->first << "\","
-        << " labelloc=t, size=\"8.5,11\" ];" << endl << endl;
+        << " labelloc=t, size=\"8.5,11\" ];" << "\n" << "\n";
 
     while (!q.empty()) {
       DFnode *n = q.front(); q.pop_front();
@@ -647,40 +650,39 @@ void DFG::print(const string& file)
       if (vst.count(n)) { continue; }
       vst.insert(n);
 
-      out << "\t" << (u32)n << " [label=\"" << n->topo << "_";
+      out << "\t" << n << " [label=\"" << n->topo << "_";
 
       if (n->pi.op == NOOP && n->pi.inst) { out << "prm\""; }
       else {
 	out << PtrInst::StrOp(n->pi.op);
 	if (n->pi.op == CALL) {
 	  out << "(" 
-	      << calledFunction(cast<CallInst>(n->pi.inst))->getNameStr()
+	      << calledFunction(cast<CallInst>(n->pi.inst))->getName()
 	      << ")";
 	}
 
 	out << "\"";
       }
 
-      out << "];" << endl;
+      out << "];" << "\n";
 
       for (dfnv_it j = n->seg_succ.begin(), e = n->seg_succ.end(); 
 	   j != e; ++j) {
-        out << "\t" << (u32)n << " -> " << (u32)*j << ";" << endl;
+        out << "\t" << n << " -> " << *j << ";" << "\n";
         q.push_back(*j);
       }
 
       for (dfnv_it j = n->use_succ.begin(), e = n->use_succ.end();
            j != e; ++j) {
-        out << "\t" << (u32)n << " -> " << (u32)*j 
-	    << " [color=blue];" << endl;
+        out << "\t" << n << " -> " << *j 
+	    << " [color=blue];" << "\n";
         q.push_back(*j);
       }
     }
 
-    out << "}" << endl << endl;
+    out << "}" << "\n" << "\n";
   }
 
-  out.close();
 }
 
 void DFG::clear()
@@ -757,7 +759,7 @@ void DFG::functionDFG(Function *F, CG &cg)
   // graph later
   //
   for (bb_it i = F->begin(); i != F->end(); ++i) {
-    BBinfo &bi = bbInfo[i];
+    BBinfo &bi = bbInfo[&*i];
     SCCinfo &scci = sccInfo[top_num];
       
     for (ibb_it j = i->begin(); j != i->end(); ++j) {
@@ -767,17 +769,17 @@ void DFG::functionDFG(Function *F, CG &cg)
 	//
 	// SEG nodes
 	//
-      case Instruction::Load:  n = handleLoad(j);           break;
-      case Instruction::Store: n = handleStore(j);          break;
-      case Instruction::Call:  n = handleCall(j,cg,du_rel); break;
-      case Instruction::Ret:   n = handleRet(j,di);         break;
+      case Instruction::Load:  n = handleLoad(&*j);           break;
+      case Instruction::Store: n = handleStore(&*j);          break;
+      case Instruction::Call:  n = handleCall(&*j,cg,du_rel); break;
+      case Instruction::Ret:   n = handleRet(&*j,di);         break;
 
 	//
 	// potentially relevant instructions for the def-use graph
 	//
 
       case Instruction::IntToPtr:
-	traceI2P(j,src,vst); // try to connect I2P with source pointers
+	traceI2P(&*j,src,vst); // try to connect I2P with source pointers
 	
 	// for each I2P instruction save the set of pointers its info
 	// comes from; for each instruction whose info goes to a I2P
@@ -785,11 +787,11 @@ void DFG::functionDFG(Function *F, CG &cg)
 	// to (in order to compute the new def-use chains)
 	//
         for (vals_it k = src.begin(), e = src.end(); k != e; ++k) {
-          i2p[j].push_back((*vi)[*k]);
+          i2p[&*j].push_back((*vi)[*k]);
 	  Value *v = VarInfo::strip(*k);
 
           if (!ART(v) && !isa<GlobalValue>(v) && !isa<ConstantExpr>(v)) {
-            p2i[v].push_back(j);
+            p2i[v].push_back(&*j);
           }
         }
 	
@@ -799,12 +801,12 @@ void DFG::functionDFG(Function *F, CG &cg)
         // lack of 'break' deliberate
 
       case Instruction::Alloca:
-      case Instruction::Malloc:
+	//      case Instruction::Malloc:
       case Instruction::PHI:
       case Instruction::Select:
       case Instruction::BitCast:
       case Instruction::GetElementPtr:	
-	if (isa<PointerType>(j->getType())) { du_rel.push_back(j); }
+	if (isa<PointerType>((&*j)->getType())) { du_rel.push_back(&*j); }
 	break;
 	
       default: break; // don't care
@@ -816,8 +818,8 @@ void DFG::functionDFG(Function *F, CG &cg)
       // some instructions in the SEG are also potentially source
       // nodes in the def-use graph
       //
-      if ((isa<LoadInst>(j) || isa<CallInst>(j)) &&
-	  isa<PointerType>(j->getType())) { du_rel.push_back(j); }
+      if ((isa<LoadInst>(&*j) || isa<CallInst>(&*j)) &&
+	  isa<PointerType>((&*j)->getType())) { du_rel.push_back((&*j)); }
 
       // see if this node is relevant to detecting local equivalence
       //
@@ -833,7 +835,7 @@ void DFG::functionDFG(Function *F, CG &cg)
 
       // register the new DFnode for the def-use graph
       //
-      seg_i2n[j] = n;
+      seg_i2n[&*j] = n;
 
       // if this is the first non-preserving instruction in the basic
       // block modify sccInfo and bbInfo, otherwise just plug in the
@@ -874,8 +876,8 @@ void DFG::functionDFG(Function *F, CG &cg)
   // SCCs are not maximal in the CFG
   //
   for (bb_it i = F->begin(), e = F->end(); i != e; ++i) {
-    BBinfo& bi = bbInfo[i];
-    if (bi.psv && !bi.ti.vst) { bb_visit(i); }
+    BBinfo& bi = bbInfo[&*i];
+    if (bi.psv && !bi.ti.vst) { bb_visit(&*i); }
   }
 
   assert(bb_st.empty());
@@ -883,10 +885,10 @@ void DFG::functionDFG(Function *F, CG &cg)
   // compute predecessors for each SCC
   //
   for (bb_it i = F->begin(), e = F->end(); i != e; ++i) {
-    BBinfo& bi = bbInfo[i];
+    BBinfo& bi = bbInfo[&*i];
     SCCinfo& si = sccInfo[bi.scc];
 
-    for (pred_iterator j = pred_begin(i), e = pred_end(i); j != e; ++j) {
+    for (pred_iterator j = pred_begin(&*i), e = pred_end(&*i); j != e; ++j) {
       BBinfo& bi2 = bbInfo[*j];
 
       if (bi2.scc != bi.scc) {
@@ -1154,7 +1156,7 @@ void DFG::functionDFG(Function *F, CG &cg)
   // the exception is 'main': if it has the argv and/or envp
   // parameters then they need to be placed on the worklist
   //
-  if (F->getNameStr() == "main") {
+  if (F->getName() == "main") {
     for (u2dfn_it i = di->prms.begin(), e = di->prms.end(); i != e; ++i) {
       DFnode *p = i->second;
 
@@ -1202,13 +1204,13 @@ bool DFG::globalRHS(Instruction *i)
     break;
   case Instruction::Call:
   case Instruction::Alloca:
-  case Instruction::Malloc:
+    //  case Instruction::Malloc:
     //
     // these don't matter
     //
     break;
   default:
-    DBX(cout << "==>>" << *i);
+    DBX(dbgs() << "==>>" << *i);
     assert(0 && "bad instruction");
   }
 
@@ -1256,7 +1258,7 @@ void DFG::dfg_visit(DFnode *n)
   if (my_dfs == ni.dfs) {
     vector<DFnode*> scc;
     map<DFnode*,bitmap>::iterator l;
-    hash_map<bitmap,PtrInfo*>::iterator p;
+    std::map<bitmap,PtrInfo*>::iterator p;
 
     while (!dfg_st.empty() && dfgInfo[dfg_st.top()].dfs >= my_dfs) {
       DFnode *x = dfg_st.top(); dfg_st.pop();
@@ -1396,7 +1398,8 @@ DFnode* DFG::du_visit(Value *v)
     case Instruction::Select:        n = handleSelect(i);    break;
     case Instruction::GetElementPtr: n = handleGEP(i);       break;
     case Instruction::Alloca:
-    case Instruction::Malloc:        n = handleAlloc(i);     break;
+      //    case Instruction::Malloc: 
+       n = handleAlloc(i);     break;
     case Instruction::IntToPtr:      n = handleI2P(i);       break;
 
     case Instruction::Load:
@@ -1410,7 +1413,7 @@ DFnode* DFG::du_visit(Value *v)
       break;
 
     default:
-      DBX(cout << "==>>" << *i << endl);
+      DBX(dbgs() << "==>>" << *i << "\n");
       assert(0 && "unknown instruction");
     }
   }
@@ -1579,7 +1582,7 @@ DFnode* DFG::handleCall(Instruction *i, CG &cg, vector<Instruction*>& du_rel)
 	case ICALL:
 	case RET:
 	  // shouldn't happen
-	  DBX(cout << "==>> " << c->getNameStr() << endl);
+	  DBX(dbgs()   << "==>> " << c->getName() << "\n"   );
 	  assert(0 && "mistranslated external call");
 	  break;
 	case ALLOC:
@@ -1786,7 +1789,7 @@ DFnode* DFG::handleGEP(Instruction *i)
 
 DFnode* DFG::handleAlloc(Instruction *i)
 {
-  AllocationInst *si = dyn_cast<AllocationInst>(i);
+  AllocaInst *si = dyn_cast<AllocaInst>(i);
   assert(si);
   
   u32 lhs = (*vi)[si];
@@ -1911,5 +1914,10 @@ void DFG::traceExp(ConstantExpr *C, set<Value*>& src, set<Value*>& vst)
   }
 }
 
+inline bool operator<(const PtrInfo&a, const PtrInfo&b)
+{
+  abort();
+  return 0;
+}
 
 #endif // _DFG_H

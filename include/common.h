@@ -33,25 +33,26 @@
 //Set this to 0 to disable assertions.
 #define USE_ASSERT 1
 
-#include "llvm/Pass.h"
-#include "llvm/Module.h"
-#include "llvm/Function.h"
-#include "llvm/Constants.h"
-#include "llvm/BasicBlock.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Instructions.h"
-#include "llvm/TypeSymbolTable.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/CallSite.h"
-#include "llvm/Support/InstIterator.h"
-#include "llvm/Support/GetElementPtrTypeIterator.h"
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/ADT/hash_set.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/StringMap.h"
+#include <llvm/Pass.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Instructions.h>
+// #include <llvm/IR/TypeSymbolTable.h>
+#include <llvm/IR/CFG.h>
+#include <llvm/IR/DebugInfo.h>
+// #include <llvm/Support/CallSite.h>
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/GetElementPtrTypeIterator.h>
+#include <llvm/Analysis/CallGraph.h>
+#include <llvm/Analysis/AliasAnalysis.h>
+#include <llvm/ADT/Hashing.h>
+#include <llvm/ADT/DenseMap.h>
+#include <llvm/ADT/DenseSet.h>
+#include <llvm/ADT/StringMap.h>
 
 #include "bitmap.h"
 #include "fdd.h"
@@ -79,8 +80,8 @@
 #include <functional>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <ext/hash_set>
-#include <ext/hash_map>
+//#include <ext/hash_set>
+//#include <ext/hash_map>
 #include "profiler.h"
 
 //Disable assert() if requested (must go above assert.h)
@@ -132,8 +133,11 @@ const u32 bvc_sz= 5000000, bvc_remove= 10000;
 //------------------------------------------------------------------------------
 //DenseMapInfo for different types
 //------------------------------------------------------------------------------
+int bitmap_getHashValue(const bitmap &);
+int bitmap_single_bit_p(const bitmap &);
 
-namespace llvm{
+namespace llvm {
+#if 0
   template<> struct DenseMapInfo<char>{
     static char getEmptyKey(){ return (char)0xf0; }
     static char getTombstoneKey(){ return (char)0xf1; }
@@ -142,6 +146,7 @@ namespace llvm{
     //for DenseSet
     static bool isPod(){ return true; }
   };
+#endif
   template<> struct DenseMapInfo<bool>{
     static bool getEmptyKey(){ return 0; }
     static bool getTombstoneKey(){ return 1; }
@@ -169,7 +174,7 @@ namespace llvm{
 
 //------------------------------------------------------------------------------
 //GNU STL hashes/comparators for different types
-namespace __gnu_cxx{
+namespace std {
   template<> struct hash<pair<u32, u32> >{
     size_t operator () (const pair<u32, u32> &X) const{
       return (X.first<<16) ^ (X.first>>16) ^ X.second;
@@ -177,7 +182,7 @@ namespace __gnu_cxx{
   };
   template<> struct hash<bitmap>{
     size_t operator () (const bitmap& s) const{
-      return (u32)s.getHashValue();
+      return (u32)bitmap_getHashValue(s);
     }
   };
 }
@@ -190,9 +195,9 @@ typedef Function::arg_iterator            prm_it;
 typedef BasicBlock::iterator              ibb_it;
 typedef Value::use_iterator               use_it;
 typedef CallSite::arg_iterator            arg_it;
-typedef TypeSymbolTable::iterator         type_it;
+// typedef TypeSymbolTable::iterator         type_it;
 typedef StructType::element_iterator      struct_it;
-typedef gep_type_iterator                 gept_it;
+// typedef gep_type_iterator                 gept_it;
 typedef User::op_iterator                 op_it;
 typedef bitmap::iterator                  bm_it;
 typedef set<Instruction*>::iterator       inss_it;
@@ -217,7 +222,7 @@ typedef map<Function*,u32>::iterator      f2u_it;
 typedef map<Instruction*,u32>::iterator   ins2u_it;
 typedef map<u32,vector<u32> >::iterator   u2uv_it;
 typedef map<u32,set<u32> >::iterator      u2us_it;
-typedef hash_map<bitmap,u32>::iterator    bm2u_it;
+typedef map<bitmap,u32>::iterator    bm2u_it;
 typedef DenseMap<Value*,u32>::iterator    dv2u_it;
 typedef DenseMap<Function*,u32>::iterator df2u_it;
 typedef DenseSet<u32>::iterator           dus_it;
@@ -234,5 +239,6 @@ Function* calledFunction(CallInst *ci);
 void clear_bdd2vec();
 const vector<u32>* bdd2vec(bdd x);
 void sat2vec(char *v, int szv);
+
 
 #endif

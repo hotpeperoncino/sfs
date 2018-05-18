@@ -3,6 +3,9 @@
 
 #include "../include/anders.h"
 
+using llvm::errs;
+using llvm::dbgs;
+
 // Set each to 1 to enable, 0 to disable; first undefine the setting
 // inherited from anders.h, then define our own settings
 //
@@ -36,6 +39,9 @@ extern bddPair *g2p;
 extern vector<bdd> bdd_off, bdd_xlt;
 extern bdd get_bdd(u32);
 
+using llvm::errs;
+using llvm::dbgs;
+
 // and same kludge so PtsGraph can access o2p[]
 //
 extern vector<u32> o2p; // object -> access equivalence partition
@@ -45,7 +51,7 @@ class SFS : public ModulePass, public Anders
 public:
 
   static char ID;
-  SFS(): ModulePass((intptr_t)&ID), Anders() {}
+ SFS() : ModulePass(ID) {}
   
   virtual bool runOnModule(Module &M);
   virtual void releaseMemory();
@@ -116,9 +122,9 @@ private:
       while (p != bddfalse) {
 	int x = fdd_scanvar(p,0);
 	p -= fdd_ithvar(0,x);
-	cerr << " " << x;
+	errs() << " " << x;
       }
-      cerr << endl;
+      errs() << "\n";
     }
     
   private:
@@ -216,7 +222,7 @@ private:
     void print()
     {
       FOREACH(pts_it,i,pts) {
-	cout << i->first << " :";
+	errs() << i->first << " :";
 	i->second.print();
       }
     }
@@ -658,10 +664,10 @@ private:
 	t4 += i->succ.size() * vp[np2p[idx]].count();
       }
 
-      cerr << "num edges w/out ae, w/ top == " << t4+t1 << endl
-	   << "num edges with  ae, w/ top == " << t3+t1 << endl
-	   << "num edges w/out ae, no top == " << t4 << endl
-	   << "num edges with  ae, no top == " << t3 << endl;
+      errs() << "num edges w/out ae, w/ top == " << t4+t1 << "\n"
+	   << "num edges with  ae, w/ top == " << t3+t1 << "\n"
+	   << "num edges w/out ae, no top == " << t4 << "\n"
+	   << "num edges with  ae, no top == " << t3 << "\n";
 
       u32 tot = 0, num = 0;
 
@@ -671,7 +677,7 @@ private:
 	tot += (nv * i->second);
       }
 
-      cerr << "avg edges/var == " << (double)tot/num << endl;
+      errs() << "avg edges/var == " << (double)tot/num << "\n";
     }
 
     void print(const string& file)
