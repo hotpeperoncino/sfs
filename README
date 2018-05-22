@@ -1,3 +1,10 @@
+=== SFS
+
+On "porting" branch, i try to port the original source to 5.0 or 6.0 latest llvm.
+Current main project is this porting.
+
+----------
+
 This is based on sfs.tar.gz downloaded from
 http://www.cs.ucsb.edu/~benh/research/downloads.html
 
